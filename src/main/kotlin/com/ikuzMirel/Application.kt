@@ -1,11 +1,13 @@
 package com.ikuzMirel
 
 import com.ikuzMirel.data.user.MongoUserDataSource
-import io.ktor.server.application.*
+import com.ikuzMirel.di.mainModule
 import com.ikuzMirel.plugins.*
 import com.ikuzMirel.security.hashing.SHA256HashingService
 import com.ikuzMirel.security.token.JwtTokenService
 import com.ikuzMirel.security.token.TokenConfig
+import io.ktor.server.application.*
+import org.koin.ktor.plugin.Koin
 import org.litote.kmongo.coroutine.coroutine
 import org.litote.kmongo.reactivestreams.KMongo
 
@@ -21,7 +23,7 @@ fun Application.module() {
         connectionString = "mongodb+srv://ikuzMirel:$mongoPW@cluster0.ua4o7tr.mongodb.net/$dbName?retryWrites=true&w=majority"
     ).coroutine
         .getDatabase(dbName)
-    val userDataSouce = MongoUserDataSource(db)
+    val userDataSource = MongoUserDataSource(db)
     val tokenService = JwtTokenService()
     val tokenConfig = TokenConfig(
         issuer = environment.config.property("jwt.issuer").getString(),
@@ -32,9 +34,12 @@ fun Application.module() {
 
     val hashingService = SHA256HashingService()
 
+    install(Koin) {
+        modules(mainModule)
+    }
     configureSecurity(tokenConfig)
     configureMonitoring()
     configureSerialization()
     configureSockets()
-    configureRouting(userDataSouce, hashingService, tokenConfig, tokenService)
+    configureRouting(userDataSource, hashingService, tokenConfig, tokenService)
 }
