@@ -1,6 +1,6 @@
 package com.ikuzMirel.plugins
 
-import io.ktor.serialization.kotlinx.json.kotlinx.json.*
+import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*

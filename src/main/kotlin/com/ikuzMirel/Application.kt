@@ -1,6 +1,6 @@
 package com.ikuzMirel
 
-import com.ikuzMirel.data.user.MongoUserDataSouce
+import com.ikuzMirel.data.user.MongoUserDataSource
 import io.ktor.server.application.*
 import com.ikuzMirel.plugins.*
 import com.ikuzMirel.security.hashing.SHA256HashingService
@@ -21,7 +21,7 @@ fun Application.module() {
         connectionString = "mongodb+srv://ikuzMirel:$mongoPW@cluster0.ua4o7tr.mongodb.net/$dbName?retryWrites=true&w=majority"
     ).coroutine
         .getDatabase(dbName)
-    val userDataSouce = MongoUserDataSouce(db)
+    val userDataSouce = MongoUserDataSource(db)
     val tokenService = JwtTokenService()
     val tokenConfig = TokenConfig(
         issuer = environment.config.property("jwt.issuer").getString(),

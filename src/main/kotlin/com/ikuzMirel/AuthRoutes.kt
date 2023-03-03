@@ -1,9 +1,11 @@
 package com.ikuzMirel
 
 import com.ikuzMirel.data.requests.AuthRequest
+import com.ikuzMirel.data.requests.InfoRequest
 import com.ikuzMirel.data.responses.AuthResponse
+import com.ikuzMirel.data.responses.InfoResponse
 import com.ikuzMirel.data.user.User
-import com.ikuzMirel.data.user.UserDataSouce
+import com.ikuzMirel.data.user.UserDataSource
 import com.ikuzMirel.security.hashing.HashingService
 import com.ikuzMirel.security.hashing.SaltedHash
 import com.ikuzMirel.security.token.TokenClaim
@@ -16,21 +18,26 @@ import io.ktor.server.auth.jwt.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import org.apache.commons.codec.digest.DigestUtils
 
 fun Route.signUp(
     hashingService: HashingService,
-    userDataSouce: UserDataSouce
+    userDataSource: UserDataSource
 ){
-    post("signup") {
+    post("signUp") {
         val request = call.receiveNullable<AuthRequest>() ?: kotlin.run {
             call.respond(HttpStatusCode.BadRequest)
             return@post
         }
 
+        val isUserAlreadyExists = userDataSource.getUserByUsername(request.username)
+        if (isUserAlreadyExists != null) {
+            call.respond(HttpStatusCode.Conflict, "User already exists")
+            return@post
+        }
+
         val areFieldsBlank = request.username.isBlank() || request.password.isBlank()
         val isPwTooShort = request.password.length < 8
-        if(areFieldsBlank || isPwTooShort) {
+        if (areFieldsBlank || isPwTooShort) {
             call.respond(HttpStatusCode.Conflict)
             return@post
         }
@@ -39,9 +46,10 @@ fun Route.signUp(
         val user = User(
             username = request.username,
             password = saltedHash.hash,
+            email = request.email,
             salt = saltedHash.salt
         )
-        val wasAcknowledged = userDataSouce.insertUser(user)
+        val wasAcknowledged = userDataSource.insertUser(user)
         if(!wasAcknowledged)  {
             call.respond(HttpStatusCode.Conflict)
             return@post
@@ -52,18 +60,18 @@ fun Route.signUp(
 }
 
 fun Route.signIn(
-    userDataSouce: UserDataSouce,
+    userDataSource: UserDataSource,
     hashingService: HashingService,
     tokenService: TokenService,
     tokenConfig: TokenConfig
 ) {
-    post("signin") {
+    post("signIn") {
         val request = call.receiveNullable<AuthRequest>() ?: kotlin.run {
             call.respond(HttpStatusCode.BadRequest)
             return@post
         }
 
-        val user = userDataSouce.getUserByUsername(request.username)
+        val user = userDataSource.getUserByUsername(request.username)
         if (user == null){
             call.respond(HttpStatusCode.Conflict,"Incorrect username or password")
             return@post
@@ -92,7 +100,9 @@ fun Route.signIn(
         call.respond(
             status = HttpStatusCode.OK,
             message = AuthResponse(
-                token = token
+                token = token,
+                username = user.username,
+                userId = user.id.toString()
             )
         )
     }
@@ -113,5 +123,28 @@ fun Route.getSecretInfo() {
             val userId = principal?.getClaim("userId", String::class)
             call.respond(HttpStatusCode.OK, "UserId is $userId")
         }
+    }
+}
+
+fun Route.getUserInfo(
+    userDataSource: UserDataSource
+) {
+    post("user") {
+        val request = call.receiveNullable<InfoRequest>() ?: kotlin.run {
+            call.respond(HttpStatusCode.BadRequest)
+            return@post
+        }
+        val user = userDataSource.getUserByUserId(request.id)
+        if (user == null){
+            call.respond(HttpStatusCode.OK, "User not available")
+            return@post
+        }
+        call.respond(
+            status = HttpStatusCode.OK,
+            message = InfoResponse(
+                username = user.username,
+                email = user.email
+            )
+        )
     }
 }
