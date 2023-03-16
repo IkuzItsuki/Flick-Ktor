@@ -1,1 +1,1 @@
-rootProject.name = "Flick-Auth"
+rootProject.name = "Flick-Ktor"
