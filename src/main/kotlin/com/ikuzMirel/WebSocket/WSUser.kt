@@ -1,8 +1,9 @@
-package com.ikuzMirel.room
+package com.ikuzMirel.WebSocket
 
 import io.ktor.websocket.*
 
-data class Member(
+data class WSUser(
+    val uid: String,
     val username: String,
     val sessionId: String,
     val socket: WebSocketSession

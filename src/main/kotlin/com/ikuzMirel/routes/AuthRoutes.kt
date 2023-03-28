@@ -1,9 +1,9 @@
-package com.ikuzMirel
+package com.ikuzMirel.routes
 
 import com.ikuzMirel.data.requests.AuthRequest
-import com.ikuzMirel.data.requests.InfoRequest
 import com.ikuzMirel.data.responses.AuthResponse
-import com.ikuzMirel.data.responses.InfoResponse
+import com.ikuzMirel.data.auth.Auth
+import com.ikuzMirel.data.auth.AuthSource
 import com.ikuzMirel.data.user.User
 import com.ikuzMirel.data.user.UserDataSource
 import com.ikuzMirel.security.hashing.HashingService
@@ -21,6 +21,7 @@ import io.ktor.server.routing.*
 
 fun Route.signUp(
     hashingService: HashingService,
+    authSource: AuthSource,
     userDataSource: UserDataSource
 ){
     post("signUp") {
@@ -29,7 +30,7 @@ fun Route.signUp(
             return@post
         }
 
-        val isUserAlreadyExists = userDataSource.getUserByUsername(request.username)
+        val isUserAlreadyExists = authSource.getAuthByUsername(request.username)
         if (isUserAlreadyExists != null) {
             call.respond(HttpStatusCode.Conflict, "User already exists")
             return@post
@@ -43,14 +44,21 @@ fun Route.signUp(
         }
 
         val saltedHash = hashingService.generateSaltedHash(request.password)
-        val user = User(
+
+        val auth = Auth(
             username = request.username,
             password = saltedHash.hash,
-            email = request.email,
             salt = saltedHash.salt
         )
-        val wasAcknowledged = userDataSource.insertUser(user)
-        if(!wasAcknowledged)  {
+        val userData = User(
+            username = request.username,
+            email = request.email,
+            id = auth.id
+        )
+
+        val authWasAcknowledged = authSource.insertAuth(auth)
+        val userWasAcknowledged = userDataSource.insertUser(userData)
+        if(!authWasAcknowledged || !userWasAcknowledged){
             call.respond(HttpStatusCode.Conflict)
             return@post
         }
@@ -60,7 +68,7 @@ fun Route.signUp(
 }
 
 fun Route.signIn(
-    userDataSource: UserDataSource,
+    authSource: AuthSource,
     hashingService: HashingService,
     tokenService: TokenService,
     tokenConfig: TokenConfig
@@ -71,7 +79,7 @@ fun Route.signIn(
             return@post
         }
 
-        val user = userDataSource.getUserByUsername(request.username)
+        val user = authSource.getAuthByUsername(request.username)
         if (user == null){
             call.respond(HttpStatusCode.Conflict,"Incorrect username or password")
             return@post
@@ -123,28 +131,5 @@ fun Route.getSecretInfo() {
             val userId = principal?.getClaim("userId", String::class)
             call.respond(HttpStatusCode.OK, "UserId is $userId")
         }
-    }
-}
-
-fun Route.getUserInfo(
-    userDataSource: UserDataSource
-) {
-    post("user") {
-        val request = call.receiveNullable<InfoRequest>() ?: kotlin.run {
-            call.respond(HttpStatusCode.BadRequest)
-            return@post
-        }
-        val user = userDataSource.getUserByUserId(request.id)
-        if (user == null){
-            call.respond(HttpStatusCode.OK, "User not available")
-            return@post
-        }
-        call.respond(
-            status = HttpStatusCode.OK,
-            message = InfoResponse(
-                username = user.username,
-                email = user.email
-            )
-        )
     }
 }

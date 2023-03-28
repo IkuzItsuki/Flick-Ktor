@@ -1,33 +1,53 @@
 package com.ikuzMirel.plugins
 
-import com.ikuzMirel.authenticate
+import com.ikuzMirel.data.auth.AuthSource
+import com.ikuzMirel.data.friends.FriendDataSource
+import com.ikuzMirel.data.friends.FriendRequestDataSource
+import com.ikuzMirel.data.message.MessageDataSource
 import com.ikuzMirel.data.user.UserDataSource
-import com.ikuzMirel.getSecretInfo
-import com.ikuzMirel.room.RoomController
-import com.ikuzMirel.routes.chatSocket
-import com.ikuzMirel.routes.getAllMessages
+import com.ikuzMirel.WebSocket.WSController
+import com.ikuzMirel.routes.*
 import com.ikuzMirel.security.hashing.HashingService
 import com.ikuzMirel.security.token.TokenConfig
 import com.ikuzMirel.security.token.TokenService
-import com.ikuzMirel.signIn
-import com.ikuzMirel.signUp
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import org.koin.ktor.ext.inject
 
 fun Application.configureRouting(
-    userDataSource: UserDataSource,
     hashingService: HashingService,
     tokenConfig: TokenConfig,
     tokenService: TokenService
 ) {
-    val roomController by inject<RoomController>()
+    val WSController by inject<WSController>()
+    val authSource by inject<AuthSource>()
+    val userDataSource by inject<UserDataSource>()
+    val friendDataSource by inject<FriendDataSource>()
+    val friendRequestDataSource by inject<FriendRequestDataSource>()
+    val messageDataSource by inject<MessageDataSource>()
     routing {
-        signIn(userDataSource, hashingService, tokenService, tokenConfig)
-        signUp(hashingService, userDataSource)
+        //Authentication
+        signIn(authSource, hashingService, tokenService, tokenConfig)
+        signUp(hashingService, authSource, userDataSource)
         authenticate()
         getSecretInfo()
-        chatSocket(roomController)
-        getAllMessages(roomController)
+
+        //User info
+        getUserInfo(userDataSource)
+
+        //Friend
+        getFriends(friendDataSource)
+
+        //FriendRequest
+        getAllSentFriendRequests(friendRequestDataSource)
+        getAllReceivedFriendRequests(friendRequestDataSource)
+        sendFriendRequest(friendRequestDataSource, friendDataSource, WSController)
+        acceptFriendRequest(friendRequestDataSource, friendDataSource, userDataSource, messageDataSource, WSController)
+        declineFriendRequest(friendRequestDataSource)
+
+        //Message
+        WebSocket(WSController)
+        getAllMessages(WSController)
+
     }
 }

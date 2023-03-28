@@ -12,7 +12,7 @@ import io.ktor.server.sessions.*
 import io.ktor.server.plugins.callloging.*
 import org.slf4j.event.*
 import io.ktor.server.request.*
-import io.ktor.serialization.kotlinx.json.kotlinx.json.kotlinx.json.kotlinx.json.*
+import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.websocket.*
 import io.ktor.server.websocket.*
@@ -29,7 +29,6 @@ class ApplicationTest {
     @Test
     fun testRoot() = testApplication {
         application {
-            configureRouting()
         }
         client.get("/").apply {
             assertEquals(HttpStatusCode.OK, status)

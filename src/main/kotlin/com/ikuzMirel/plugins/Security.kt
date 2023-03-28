@@ -3,12 +3,11 @@ package com.ikuzMirel.plugins
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.ikuzMirel.security.token.TokenConfig
-import com.ikuzMirel.session.ChatSession
+import com.ikuzMirel.session.WSSession
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
 import io.ktor.server.sessions.*
-import io.ktor.util.*
 
 fun Application.configureSecurity(config: TokenConfig) {
 
@@ -29,13 +28,6 @@ fun Application.configureSecurity(config: TokenConfig) {
     }
 
     install(Sessions) {
-        cookie<ChatSession>("SESSION")
-    }
-
-    intercept(ApplicationCallPipeline.Plugins) {
-        if(call.sessions.get<ChatSession>() == null) {
-            val username = call.parameters["username"] ?: "Guest"
-            call.sessions.set(ChatSession(username, generateNonce()))
-        }
+        cookie<WSSession>("SESSION")
     }
 }

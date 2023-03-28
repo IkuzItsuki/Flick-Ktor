@@ -1,6 +1,6 @@
 package com.ikuzMirel.session
 
-data class ChatSession(
-    val username: String,
+data class WSSession(
+    val userId: String,
     val sessionId: String
 )

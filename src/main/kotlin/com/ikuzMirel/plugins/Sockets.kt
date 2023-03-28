@@ -1,13 +1,8 @@
 package com.ikuzMirel.plugins
 
-import io.ktor.server.routing.*
-import io.ktor.server.websocket.*
+import io.ktor.server.application.*
 import io.ktor.server.websocket.*
 import java.time.Duration
-import io.ktor.server.application.*
-import io.ktor.server.response.*
-import io.ktor.server.request.*
-import io.ktor.server.routing.*
 
 fun Application.configureSockets() {
     install(WebSockets) {
@@ -16,5 +11,4 @@ fun Application.configureSockets() {
         maxFrameSize = Long.MAX_VALUE
         masking = false
     }
-
 }
