@@ -1,9 +1,9 @@
 package com.ikuzMirel.routes
 
-import com.ikuzMirel.data.requests.AuthRequest
-import com.ikuzMirel.data.responses.AuthResponse
 import com.ikuzMirel.data.auth.Auth
 import com.ikuzMirel.data.auth.AuthSource
+import com.ikuzMirel.data.requests.AuthRequest
+import com.ikuzMirel.data.responses.AuthResponse
 import com.ikuzMirel.data.user.User
 import com.ikuzMirel.data.user.UserDataSource
 import com.ikuzMirel.security.hashing.HashingService
@@ -23,7 +23,7 @@ fun Route.signUp(
     hashingService: HashingService,
     authSource: AuthSource,
     userDataSource: UserDataSource
-){
+) {
     post("signUp") {
         val request = call.receiveNullable<AuthRequest>() ?: kotlin.run {
             call.respond(HttpStatusCode.BadRequest)
@@ -58,7 +58,7 @@ fun Route.signUp(
 
         val authWasAcknowledged = authSource.insertAuth(auth)
         val userWasAcknowledged = userDataSource.insertUser(userData)
-        if(!authWasAcknowledged || !userWasAcknowledged){
+        if (!authWasAcknowledged || !userWasAcknowledged) {
             call.respond(HttpStatusCode.Conflict)
             return@post
         }
@@ -80,8 +80,8 @@ fun Route.signIn(
         }
 
         val user = authSource.getAuthByUsername(request.username)
-        if (user == null){
-            call.respond(HttpStatusCode.Conflict,"Incorrect username or password")
+        if (user == null) {
+            call.respond(HttpStatusCode.Conflict, "Incorrect username or password")
             return@post
         }
 
@@ -92,7 +92,7 @@ fun Route.signIn(
                 salt = user.salt
             )
         )
-        if (!isValidPassword){
+        if (!isValidPassword) {
             call.respond(HttpStatusCode.Conflict, "Incorrect username or password")
             return@post
         }
@@ -117,19 +117,15 @@ fun Route.signIn(
 }
 
 fun Route.authenticate() {
-    authenticate {
-        get("authenticate") {
-            call.respond(HttpStatusCode.OK)
-        }
+    get("authenticate") {
+        call.respond(HttpStatusCode.OK)
     }
 }
 
 fun Route.getSecretInfo() {
-    authenticate {
-        get("secret") {
-            val principal = call.principal<JWTPrincipal>()
-            val userId = principal?.getClaim("userId", String::class)
-            call.respond(HttpStatusCode.OK, "UserId is $userId")
-        }
+    get("secret") {
+        val principal = call.principal<JWTPrincipal>()
+        val userId = principal?.getClaim("userId", String::class)
+        call.respond(HttpStatusCode.OK, "UserId is $userId")
     }
 }

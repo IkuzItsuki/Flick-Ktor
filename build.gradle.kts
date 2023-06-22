@@ -6,9 +6,9 @@ val commons_codec_version: String by project
 val koin_version: String by project
 
 plugins {
-    kotlin("jvm") version "1.8.0"
-    id("io.ktor.plugin") version "2.2.2"
-    id("org.jetbrains.kotlin.plugin.serialization") version "1.8.0"
+    kotlin("jvm") version "1.8.21"
+    id("io.ktor.plugin") version "2.3.0"
+    id("org.jetbrains.kotlin.plugin.serialization") version "1.8.21"
     id("com.github.johnrengelman.shadow") version "7.1.2"
 }
 
@@ -22,6 +22,10 @@ application {
     applicationDefaultJvmArgs = listOf("-Dio.ktor.development=$isDevelopment")
 }
 
+kotlin {
+    jvmToolchain(11)
+}
+
 repositories {
     mavenCentral()
     maven {
@@ -29,9 +33,6 @@ repositories {
         name = "ktor-eap"
     }
 }
-
-val sshAntTask = configurations.create("sshAntTask")
-
 
 dependencies {
     implementation("io.ktor:ktor-server-core-jvm:$ktor_version")
@@ -56,75 +57,4 @@ dependencies {
 
     testImplementation("io.ktor:ktor-server-tests-jvm:$ktor_version")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
-
-    sshAntTask("org.apache.ant:ant-jsch:1.10.12")
-}
-
-tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
-    manifest {
-        attributes(
-            "Main-Class" to application.mainClass.get()
-        )
-    }
-}
-
-ant.withGroovyBuilder {
-    "taskdef"(
-        "name" to "scp",
-        "classname" to "org.apache.tools.ant.taskdefs.optional.ssh.Scp",
-        "classpath" to configurations.get("sshAntTask").asPath
-    )
-    "taskdef"(
-        "name" to "ssh",
-        "classname" to "org.apache.tools.ant.taskdefs.optional.ssh.SSHExec",
-        "classpath" to configurations.get("sshAntTask").asPath
-    )
-}
-
-task("deploy") {
-    dependsOn("clean", "shadowJar")
-    ant.withGroovyBuilder {
-        doLast {
-            val knownHosts = File.createTempFile("knownhosts", "txt")
-            val user = "root"
-            val host = "16.170.246.209"
-            val key = file("keys/FlickKtorRSA.pem")
-            val jarFileName = "Flick-Ktor-all.jar"
-            try {
-                "scp"(
-                    "file" to file("build/libs/$jarFileName"),
-                    "todir" to "$user@$host:/root/flickKtor",
-                    "keyfile" to key,
-                    "trust" to true,
-                    "knownhosts" to knownHosts
-                )
-                "ssh"(
-                    "host" to host,
-                    "username" to user,
-                    "keyfile" to key,
-                    "trust" to true,
-                    "knownhosts" to knownHosts,
-                    "command" to "mv /root/flickKtor/$jarFileName /root/flickKtor/flickKtor.jar"
-                )
-                "ssh"(
-                    "host" to host,
-                    "username" to user,
-                    "keyfile" to key,
-                    "trust" to true,
-                    "knownhosts" to knownHosts,
-                    "command" to "systemctl stop flickKtor"
-                )
-                "ssh"(
-                    "host" to host,
-                    "username" to user,
-                    "keyfile" to key,
-                    "trust" to true,
-                    "knownhosts" to knownHosts,
-                    "command" to "systemctl start flickKtor"
-                )
-            } finally {
-                knownHosts.delete()
-            }
-        }
-    }
 }

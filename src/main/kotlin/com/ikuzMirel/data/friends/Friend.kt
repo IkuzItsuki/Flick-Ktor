@@ -9,6 +9,6 @@ import org.bson.types.ObjectId
 data class Friend(
     val username: String,
     @Serializable(with = ObjectIdSerializer::class)
-    @BsonId val id: ObjectId,
+    @BsonId val userId: ObjectId,
     val collectionId: String
 )

@@ -1,6 +1,5 @@
 package com.ikuzMirel.di
 
-import com.ikuzMirel.WebSocket.WSController
 import com.ikuzMirel.data.auth.AuthSource
 import com.ikuzMirel.data.auth.AuthSourceImpl
 import com.ikuzMirel.data.friends.FriendDataSource
@@ -11,16 +10,17 @@ import com.ikuzMirel.data.message.MessageDataSource
 import com.ikuzMirel.data.message.MessageDataSourceImpl
 import com.ikuzMirel.data.user.UserDataSource
 import com.ikuzMirel.data.user.UserDataSourceImpl
+import com.ikuzMirel.websocket.WebSocketHandler
 import org.koin.dsl.module
 import org.litote.kmongo.coroutine.CoroutineDatabase
 import org.litote.kmongo.coroutine.coroutine
 import org.litote.kmongo.reactivestreams.KMongo
 
-val mongoPW = System.getenv("MONGO_PW")
-val authDBName = "auths"
-val userDBName = "users"
-val friendReqDBName = "friendRequests"
-val massageDBName = "messages"
+val mongoPW: String = System.getenv("MONGO_PW")
+const val authDBName = "auths"
+const val userDBName = "users"
+const val friendReqDBName = "friendRequests"
+const val massageDBName = "messages"
 
 val mainModule = module {
 
@@ -48,6 +48,6 @@ val mainModule = module {
         MessageDataSourceImpl(getDB(massageDBName))
     }
     single {
-        WSController(get(), get())
+        WebSocketHandler(get(), get())
     }
 }

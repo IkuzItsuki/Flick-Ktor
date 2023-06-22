@@ -1,6 +1,6 @@
 package com.ikuzMirel.session
 
-data class WSSession(
+data class WebSocketSession(
     val userId: String,
     val sessionId: String
 )

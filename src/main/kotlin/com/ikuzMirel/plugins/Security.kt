@@ -3,7 +3,7 @@ package com.ikuzMirel.plugins
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.ikuzMirel.security.token.TokenConfig
-import com.ikuzMirel.session.WSSession
+import com.ikuzMirel.session.WebSocketSession
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
@@ -12,7 +12,7 @@ import io.ktor.server.sessions.*
 fun Application.configureSecurity(config: TokenConfig) {
 
     authentication {
-        jwt {
+        jwt("auth-jwt") {
             realm = this@configureSecurity.environment.config.property("jwt.realm").getString()
             verifier(
                 JWT
@@ -28,6 +28,16 @@ fun Application.configureSecurity(config: TokenConfig) {
     }
 
     install(Sessions) {
-        cookie<WSSession>("SESSION")
+        cookie<WebSocketSession>("SESSION")
+    }
+
+    intercept(ApplicationCallPipeline.Plugins) {
+        if (call.sessions.get<WebSocketSession>() == null) {
+            val sender = call.parameters["Uid"].orEmpty()
+
+            if (sender.isNotEmpty()) {
+                call.sessions.set(WebSocketSession(sender, generateSessionId()))
+            }
+        }
     }
 }

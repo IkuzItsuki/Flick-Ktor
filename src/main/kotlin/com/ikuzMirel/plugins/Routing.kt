@@ -5,12 +5,13 @@ import com.ikuzMirel.data.friends.FriendDataSource
 import com.ikuzMirel.data.friends.FriendRequestDataSource
 import com.ikuzMirel.data.message.MessageDataSource
 import com.ikuzMirel.data.user.UserDataSource
-import com.ikuzMirel.WebSocket.WSController
 import com.ikuzMirel.routes.*
 import com.ikuzMirel.security.hashing.HashingService
 import com.ikuzMirel.security.token.TokenConfig
 import com.ikuzMirel.security.token.TokenService
+import com.ikuzMirel.websocket.WebSocketHandler
 import io.ktor.server.application.*
+import io.ktor.server.auth.*
 import io.ktor.server.routing.*
 import org.koin.ktor.ext.inject
 
@@ -19,7 +20,7 @@ fun Application.configureRouting(
     tokenConfig: TokenConfig,
     tokenService: TokenService
 ) {
-    val WSController by inject<WSController>()
+    val webSocketHandler by inject<WebSocketHandler>()
     val authSource by inject<AuthSource>()
     val userDataSource by inject<UserDataSource>()
     val friendDataSource by inject<FriendDataSource>()
@@ -29,25 +30,36 @@ fun Application.configureRouting(
         //Authentication
         signIn(authSource, hashingService, tokenService, tokenConfig)
         signUp(hashingService, authSource, userDataSource)
-        authenticate()
-        getSecretInfo()
 
-        //User info
-        getUserInfo(userDataSource)
+        authenticate("auth-jwt") {
+            authenticate()
+            getSecretInfo()
 
-        //Friend
-        getFriends(friendDataSource)
+            //User info
+            getUserInfo(userDataSource)
 
-        //FriendRequest
-        getAllSentFriendRequests(friendRequestDataSource)
-        getAllReceivedFriendRequests(friendRequestDataSource)
-        sendFriendRequest(friendRequestDataSource, friendDataSource, WSController)
-        acceptFriendRequest(friendRequestDataSource, friendDataSource, userDataSource, messageDataSource, WSController)
-        declineFriendRequest(friendRequestDataSource)
+            //Friend
+            getFriends(friendDataSource)
 
-        //Message
-        WebSocket(WSController)
-        getAllMessages(WSController)
+            //FriendRequest
+            getAllSentFriendRequests(friendRequestDataSource)
+            getAllReceivedFriendRequests(friendRequestDataSource)
+            sendFriendRequest(friendRequestDataSource, friendDataSource, webSocketHandler)
+            acceptFriendRequest(
+                friendRequestDataSource,
+                friendDataSource,
+                userDataSource,
+                messageDataSource,
+                webSocketHandler
+            )
+            declineFriendRequest(friendRequestDataSource)
 
+            //Websocket
+            connectToWebsocket(webSocketHandler)
+            showAllConnections(webSocketHandler)
+
+            //Message
+            getAllMessages(messageDataSource)
+        }
     }
 }
