@@ -45,6 +45,7 @@ fun Application.configureRouting(
             getAllSentFriendRequests(friendRequestDataSource)
             getAllReceivedFriendRequests(friendRequestDataSource)
             sendFriendRequest(friendRequestDataSource, friendDataSource, webSocketHandler)
+            cancelFriendRequest(friendRequestDataSource)
             acceptFriendRequest(
                 friendRequestDataSource,
                 friendDataSource,
@@ -53,6 +54,7 @@ fun Application.configureRouting(
                 webSocketHandler
             )
             declineFriendRequest(friendRequestDataSource)
+            searchForFriends(userDataSource, friendDataSource)
 
             //Websocket
             connectToWebsocket(webSocketHandler)

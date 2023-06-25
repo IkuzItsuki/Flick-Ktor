@@ -8,11 +8,15 @@ import com.ikuzMirel.data.message.MessageDataSource
 import com.ikuzMirel.data.requests.FriendReqRequest
 import com.ikuzMirel.data.responses.FriendListResponse
 import com.ikuzMirel.data.responses.FriendReqResponse
+import com.ikuzMirel.data.responses.UserListResponse
 import com.ikuzMirel.data.user.UserDataSource
+import com.ikuzMirel.data.user.UserSearchResult
 import com.ikuzMirel.websocket.WebSocketHandler
 import com.ikuzMirel.websocket.WebSocketMessage
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.auth.*
+import io.ktor.server.auth.jwt.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -20,6 +24,9 @@ import io.ktor.websocket.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.bson.types.ObjectId
+
+// Many of conditions in these routes are not directly necessary, but they are here to prevent any possible problems
+// like preventing people abusing the API if the server was leaked or something like that.
 
 fun Route.sendFriendRequest(
     friendRequestDataSource: FriendRequestDataSource,
@@ -30,6 +37,12 @@ fun Route.sendFriendRequest(
     post("friendRequests/send") {
         val request = call.receiveNullable<FriendReqRequest>() ?: kotlin.run {
             call.respond(HttpStatusCode.BadRequest)
+            return@post
+        }
+
+        val requestUserId = call.principal<JWTPrincipal>()?.getClaim("userId", String::class)
+        if (requestUserId != request.senderId) {
+            call.respond(HttpStatusCode.Conflict, "Friend request sender id does not match with token")
             return@post
         }
 
@@ -67,6 +80,39 @@ fun Route.sendFriendRequest(
     }
 }
 
+fun Route.cancelFriendRequest(
+    friendRequestDataSource: FriendRequestDataSource
+) {
+    post("friendRequests/cancel") {
+        val request = call.parameters["id"] ?: kotlin.run {
+            call.respond(HttpStatusCode.BadRequest)
+            return@post
+        }
+        val requestUserId = call.principal<JWTPrincipal>()?.getClaim("userId", String::class)
+
+        val friendRequest = friendRequestDataSource.getFriendRequestById(request)
+        if (friendRequest == null) {
+            call.respond(HttpStatusCode.Conflict, "Friend request does not exist")
+            return@post
+        }
+        if (friendRequest.senderId != requestUserId) {
+            call.respond(HttpStatusCode.Conflict, "Friend request is not sent by user")
+            return@post
+        }
+
+        val result = friendRequestDataSource.cancelFriendRequest(request)
+        if (!result) {
+            call.respond(HttpStatusCode.Conflict, "Friend request not cancelled")
+            return@post
+        }
+
+        call.respond(
+            status = HttpStatusCode.OK,
+            message = "Friend request cancelled"
+        )
+    }
+}
+
 fun Route.acceptFriendRequest(
     friendRequestDataSource: FriendRequestDataSource,
     friendDataSource: FriendDataSource,
@@ -79,14 +125,20 @@ fun Route.acceptFriendRequest(
             call.respond(HttpStatusCode.BadRequest)
             return@post
         }
-        val result = friendRequestDataSource.acceptFriendRequest(request)
-        if (!result) {
-            call.respond(HttpStatusCode.Conflict, "Friend request not accepted")
-            return@post
-        }
+        val requestUserId = call.principal<JWTPrincipal>()?.getClaim("userId", String::class)
 
         val friendRequest = friendRequestDataSource.getFriendRequestById(request)
         if (friendRequest == null) {
+            call.respond(HttpStatusCode.Conflict, "Friend request does not exist")
+            return@post
+        }
+        if (friendRequest.receiverId != requestUserId) {
+            call.respond(HttpStatusCode.Conflict, "Friend request is accepted by wrong user")
+            return@post
+        }
+
+        val result = friendRequestDataSource.acceptFriendRequest(request)
+        if (!result) {
             call.respond(HttpStatusCode.Conflict, "Friend request not accepted")
             return@post
         }
@@ -196,6 +248,47 @@ fun Route.getAllReceivedFriendRequests(
         call.respond(
             status = HttpStatusCode.OK,
             message = FriendReqResponse(friendRequests)
+        )
+    }
+}
+
+fun Route.searchForFriends(
+    userDataSource: UserDataSource,
+    friendDataSource: FriendDataSource
+) {
+    get("user/search") {
+        val username = call.parameters["username"] ?: kotlin.run {
+            call.respond(HttpStatusCode.BadRequest)
+            return@get
+        }
+
+        val requestUserId = call.principal<JWTPrincipal>()?.getClaim("userId", String::class)!!
+
+        val users = userDataSource.getUsersByName(username)
+        if (users.isEmpty()) {
+            call.respond(HttpStatusCode.OK, UserListResponse(emptyList()))
+            return@get
+        }
+
+        val friends = friendDataSource.getAllFriends(requestUserId)
+        val filteredUser = users.filter {
+            it.id.toString() != requestUserId
+        }
+
+        val result = filteredUser.map {
+            val friendWithMe = friends.any { friend ->
+                friend.userId == it.id
+            }
+            UserSearchResult(
+                userId = it.id.toString(),
+                username = it.username,
+                friendWithMe = friendWithMe
+            )
+        }
+
+        call.respond(
+            status = HttpStatusCode.OK,
+            message = UserListResponse(result)
         )
     }
 }
