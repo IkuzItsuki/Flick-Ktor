@@ -37,3 +37,4 @@ out/
 
 ### SSH ###
 keys/
+/deploy.gradle.kts

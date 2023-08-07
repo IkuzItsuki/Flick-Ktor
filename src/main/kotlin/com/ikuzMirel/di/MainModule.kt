@@ -18,8 +18,7 @@ import org.litote.kmongo.reactivestreams.KMongo
 
 val mongoPW: String = System.getenv("MONGO_PW")
 const val authDBName = "auths"
-const val userDBName = "users"
-const val friendReqDBName = "friendRequests"
+const val userDataDBName = "userData"
 const val massageDBName = "messages"
 
 val mainModule = module {
@@ -36,13 +35,13 @@ val mainModule = module {
         AuthSourceImpl(getDB(authDBName))
     }
     single<UserDataSource> {
-        UserDataSourceImpl(getDB(userDBName))
+        UserDataSourceImpl(getDB(userDataDBName))
     }
     single<FriendDataSource> {
-        FriendDataSourceImpl(getDB(userDBName))
+        FriendDataSourceImpl(getDB(userDataDBName))
     }
     single<FriendRequestDataSource> {
-        FriendRequestDataSourceImpl(getDB(friendReqDBName))
+        FriendRequestDataSourceImpl(getDB(userDataDBName))
     }
     single<MessageDataSource> {
         MessageDataSourceImpl(getDB(massageDBName))

@@ -6,5 +6,6 @@ import kotlinx.serialization.Serializable
 data class UserSearchResult(
     val userId: String,
     val username: String,
-    val friendWithMe: Boolean
+    val friendWithMe: Boolean,
+    val collectionId: String,
 )

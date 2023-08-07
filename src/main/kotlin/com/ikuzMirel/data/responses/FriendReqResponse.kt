@@ -5,5 +5,5 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class FriendReqResponse(
-    val friendRequest: List<FriendRequest>
+    val friendRequests: List<FriendRequest>
 )

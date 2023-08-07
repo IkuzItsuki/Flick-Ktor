@@ -16,6 +16,13 @@ class FriendDataSourceImpl(
         return user?.friends ?: emptyList()
     }
 
+    override suspend fun getFriendById(userId: String, friendId: String): Friend? {
+        val userObjID = ObjectId(userId)
+        val friendObjID = ObjectId(friendId)
+        val user = userFriends.findOne(User::id eq userObjID) ?: return null
+        return user.friends.find { it.userId == friendObjID }
+    }
+
     override suspend fun deleteFriend(userId: String, friend: Friend): Boolean {
         val userObjID = ObjectId(userId)
         val user = userFriends.findOne(User::id eq userObjID)

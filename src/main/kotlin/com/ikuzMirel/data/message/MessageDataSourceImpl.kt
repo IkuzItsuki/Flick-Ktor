@@ -1,6 +1,9 @@
 package com.ikuzMirel.data.message
 
+import com.mongodb.client.model.ClusteredIndexOptions
+import com.mongodb.client.model.CreateCollectionOptions
 import org.bson.types.ObjectId
+import org.litote.kmongo.bson
 import org.litote.kmongo.coroutine.CoroutineDatabase
 
 class MessageDataSourceImpl(
@@ -23,7 +26,11 @@ class MessageDataSourceImpl(
 
     override suspend fun createMessageCollection(): String {
         val newId = ObjectId()
-        db.createCollection(newId.toString())
+        db.createCollection(
+            newId.toString(), CreateCollectionOptions().clusteredIndexOptions(
+                ClusteredIndexOptions("""{ _id: 1 }""".bson, true)
+            )
+        )
         return newId.toString()
     }
 

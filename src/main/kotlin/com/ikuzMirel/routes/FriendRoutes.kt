@@ -1,9 +1,6 @@
 package com.ikuzMirel.routes
 
-import com.ikuzMirel.data.friends.Friend
-import com.ikuzMirel.data.friends.FriendDataSource
-import com.ikuzMirel.data.friends.FriendRequest
-import com.ikuzMirel.data.friends.FriendRequestDataSource
+import com.ikuzMirel.data.friends.*
 import com.ikuzMirel.data.message.MessageDataSource
 import com.ikuzMirel.data.requests.FriendReqRequest
 import com.ikuzMirel.data.responses.FriendListResponse
@@ -25,10 +22,11 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.bson.types.ObjectId
 
-// Many of conditions in these routes are not directly necessary, but they are here to prevent any possible problems
+// Many of the conditions in these routes are not directly necessary, but they are here to prevent any possible problems
 // like preventing people abusing the API if the server was leaked or something like that.
 
 fun Route.sendFriendRequest(
+    userDataSource: UserDataSource,
     friendRequestDataSource: FriendRequestDataSource,
     friendDataSource: FriendDataSource,
     webSocketHandler: WebSocketHandler
@@ -53,10 +51,15 @@ fun Route.sendFriendRequest(
             return@post
         }
 
+        val senderData = userDataSource.getUserById(request.senderId)
+        val receiverData = userDataSource.getUserById(request.receiverId)
+
         val friendRequest = FriendRequest(
             senderId = request.senderId,
+            senderName = senderData?.username ?: "",
             receiverId = request.receiverId,
-            status = "pending"
+            receiverName = receiverData?.username ?: "",
+            status = FriendRequestStatus.PENDING.name,
         )
         val result = friendRequestDataSource.sendFriendRequest(friendRequest)
         if (!result) {
@@ -75,7 +78,7 @@ fun Route.sendFriendRequest(
 
         call.respond(
             status = HttpStatusCode.OK,
-            message = "Friend request sent"
+            message = friendRequest
         )
     }
 }
@@ -136,6 +139,7 @@ fun Route.acceptFriendRequest(
             call.respond(HttpStatusCode.Conflict, "Friend request is accepted by wrong user")
             return@post
         }
+        val newFriendRequest = friendRequest.copy(status = FriendRequestStatus.ACCEPTED.name)
 
         val result = friendRequestDataSource.acceptFriendRequest(request)
         if (!result) {
@@ -178,7 +182,7 @@ fun Route.acceptFriendRequest(
 
         val webSocketMessage = WebSocketMessage(
             type = "friendRequest",
-            data = friendRequest
+            data = newFriendRequest
         )
         val parsedFriendRequest = Json.encodeToString(webSocketMessage)
         if (webSocketHandler.connections[friendRequest.senderId]?.socket != null) {
@@ -192,22 +196,46 @@ fun Route.acceptFriendRequest(
     }
 }
 
-fun Route.declineFriendRequest(
-    friendRequestDataSource: FriendRequestDataSource
+fun Route.rejectFriendRequest(
+    friendRequestDataSource: FriendRequestDataSource,
+    webSocketHandler: WebSocketHandler
 ) {
-    post("friendRequests/decline") {
+    post("friendRequests/reject") {
         val request = call.parameters["id"] ?: kotlin.run {
             call.respond(HttpStatusCode.BadRequest)
             return@post
         }
-        val result = friendRequestDataSource.declineFriendRequest(request)
-        if (!result) {
-            call.respond(HttpStatusCode.Conflict, "Friend request not declined")
+        val requestUserId = call.principal<JWTPrincipal>()?.getClaim("userId", String::class)
+
+        val friendRequest = friendRequestDataSource.getFriendRequestById(request)
+        if (friendRequest == null) {
+            call.respond(HttpStatusCode.Conflict, "Friend request does not exist")
             return@post
         }
+        if (friendRequest.receiverId != requestUserId) {
+            call.respond(HttpStatusCode.Conflict, "Friend request is accepted by wrong user")
+            return@post
+        }
+        val newFriendRequest = friendRequest.copy(status = FriendRequestStatus.REJECTED.name)
+
+        val result = friendRequestDataSource.declineFriendRequest(request)
+        if (!result) {
+            call.respond(HttpStatusCode.Conflict, "Friend request not rejected")
+            return@post
+        }
+
+        val webSocketMessage = WebSocketMessage(
+            type = "friendRequest",
+            data = newFriendRequest
+        )
+        val parsedFriendRequest = Json.encodeToString(webSocketMessage)
+        if (webSocketHandler.connections[friendRequest.senderId]?.socket != null) {
+            webSocketHandler.connections[friendRequest.senderId]?.socket?.send(Frame.Text(parsedFriendRequest))
+        }
+
         call.respond(
             status = HttpStatusCode.OK,
-            message = "Friend request declined"
+            message = "Friend request rejected"
         )
     }
 }
@@ -216,15 +244,8 @@ fun Route.getAllSentFriendRequests(
     friendRequestDataSource: FriendRequestDataSource
 ) {
     get("friendRequests/sent") {
-        val id = call.parameters["id"] ?: kotlin.run {
-            call.respond(HttpStatusCode.BadRequest)
-            return@get
-        }
+        val id = call.principal<JWTPrincipal>()?.getClaim("userId", String::class)!!
         val friendRequests = friendRequestDataSource.getAllSentFriendRequests(id)
-        if (friendRequests.isEmpty()) {
-            call.respond(HttpStatusCode.OK, "No friend requests sent")
-            return@get
-        }
         call.respond(
             status = HttpStatusCode.OK,
             message = FriendReqResponse(friendRequests)
@@ -236,15 +257,8 @@ fun Route.getAllReceivedFriendRequests(
     friendRequestDataSource: FriendRequestDataSource
 ) {
     get("friendRequests/received") {
-        val id = call.parameters["id"] ?: kotlin.run {
-            call.respond(HttpStatusCode.BadRequest)
-            return@get
-        }
+        val id = call.principal<JWTPrincipal>()?.getClaim("userId", String::class)!!
         val friendRequests = friendRequestDataSource.getAllReceivedFriendRequests(id)
-        if (friendRequests.isEmpty()) {
-            call.respond(HttpStatusCode.OK, "No friend requests received")
-            return@get
-        }
         call.respond(
             status = HttpStatusCode.OK,
             message = FriendReqResponse(friendRequests)
@@ -271,18 +285,26 @@ fun Route.searchForFriends(
         }
 
         val friends = friendDataSource.getAllFriends(requestUserId)
-        val filteredUser = users.filter {
+        val userListWithoutRequester = users.filter {
             it.id.toString() != requestUserId
         }
 
-        val result = filteredUser.map {
+        val result = userListWithoutRequester.map {
             val friendWithMe = friends.any { friend ->
                 friend.userId == it.id
             }
+
             UserSearchResult(
                 userId = it.id.toString(),
                 username = it.username,
-                friendWithMe = friendWithMe
+                friendWithMe = friendWithMe,
+                collectionId = if (friendWithMe) {
+                    friends.first { friend ->
+                        friend.userId == it.id
+                    }.collectionId
+                } else {
+                    ""
+                }
             )
         }
 
@@ -310,6 +332,30 @@ fun Route.getFriends(
         call.respond(
             status = HttpStatusCode.OK,
             message = FriendListResponse(friends)
+        )
+    }
+}
+
+fun Route.getFriend(
+    friendDataSource: FriendDataSource
+) {
+    get("user/friend") {
+        val id = call.parameters["id"] ?: kotlin.run {
+            call.respond(HttpStatusCode.BadRequest)
+            return@get
+        }
+        val friendId = call.parameters["friendId"] ?: kotlin.run {
+            call.respond(HttpStatusCode.BadRequest)
+            return@get
+        }
+        val friend = friendDataSource.getFriendById(id, friendId) ?: run {
+            call.respond(HttpStatusCode.Conflict, "Friend not found")
+            return@get
+        }
+
+        call.respond(
+            status = HttpStatusCode.OK,
+            message = friend
         )
     }
 }
