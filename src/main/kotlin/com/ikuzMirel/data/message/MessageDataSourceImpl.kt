@@ -2,12 +2,14 @@ package com.ikuzMirel.data.message
 
 import com.mongodb.client.model.ClusteredIndexOptions
 import com.mongodb.client.model.CreateCollectionOptions
+import com.mongodb.client.model.Sorts
+import com.mongodb.kotlin.client.coroutine.MongoDatabase
+import kotlinx.coroutines.flow.toList
+import org.bson.Document
 import org.bson.types.ObjectId
-import org.litote.kmongo.bson
-import org.litote.kmongo.coroutine.CoroutineDatabase
 
 class MessageDataSourceImpl(
-    private val db: CoroutineDatabase
+    private val db: MongoDatabase
 ): MessageDataSource {
 
     private fun getCollection(collectionId: String) = db.getCollection<Message>(collectionId)
@@ -15,7 +17,7 @@ class MessageDataSourceImpl(
     override suspend fun getAllMessages(collectionId: String): List<Message> {
         val messages = getCollection(collectionId)
         return messages.find()
-            .descendingSort(Message::timestamp)
+            .sort(Sorts.descending(Message::timestamp.name))
             .toList()
     }
 
@@ -28,7 +30,7 @@ class MessageDataSourceImpl(
         val newId = ObjectId()
         db.createCollection(
             newId.toString(), CreateCollectionOptions().clusteredIndexOptions(
-                ClusteredIndexOptions("""{ _id: 1 }""".bson, true)
+                ClusteredIndexOptions(Document("_id", 1), true)
             )
         )
         return newId.toString()

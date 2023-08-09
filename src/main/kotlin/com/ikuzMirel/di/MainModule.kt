@@ -11,10 +11,9 @@ import com.ikuzMirel.data.message.MessageDataSourceImpl
 import com.ikuzMirel.data.user.UserDataSource
 import com.ikuzMirel.data.user.UserDataSourceImpl
 import com.ikuzMirel.websocket.WebSocketHandler
+import com.mongodb.kotlin.client.coroutine.MongoClient
+import com.mongodb.kotlin.client.coroutine.MongoDatabase
 import org.koin.dsl.module
-import org.litote.kmongo.coroutine.CoroutineDatabase
-import org.litote.kmongo.coroutine.coroutine
-import org.litote.kmongo.reactivestreams.KMongo
 
 val mongoPW: String = System.getenv("MONGO_PW")
 const val authDBName = "auths"
@@ -23,12 +22,10 @@ const val massageDBName = "messages"
 
 val mainModule = module {
 
-    fun getDB(dbName: String): CoroutineDatabase {
-        return KMongo.createClient(
-            connectionString = "mongodb+srv://ikuzMirel:$mongoPW@cluster1.cailxou.mongodb.net/$dbName?retryWrites=true&w=majority"
-        )
-            .coroutine
-            .getDatabase(dbName)
+    fun getDB(dbName: String): MongoDatabase {
+        return MongoClient.create(
+            "mongodb+srv://ikuzMirel:$mongoPW@cluster1.cailxou.mongodb.net/?retryWrites=true&w=majority"
+        ).getDatabase(dbName)
     }
 
     single<AuthSource> {

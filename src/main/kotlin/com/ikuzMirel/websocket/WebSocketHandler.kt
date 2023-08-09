@@ -54,7 +54,7 @@ class WebSocketHandler(
             content = messageEntity.content,
             senderUid = userId,
             timestamp = messageEntity.timestamp,
-            id = messageEntity.id.toString(),
+            id = messageEntity._id.toString(),
             collectionId = collectionId
         )
 

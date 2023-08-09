@@ -20,7 +20,7 @@ fun Route.getAllMessages(messageDataSource: MessageDataSource) {
 
         val responseWithCid = response.map {
             MessageWithCid(
-                it.id.toString(),
+                it._id.toString(),
                 it.content,
                 it.senderUid,
                 it.timestamp,

@@ -1,14 +1,16 @@
 package com.ikuzMirel.data.friends
 
+import com.mongodb.client.model.*
+import com.mongodb.kotlin.client.coroutine.MongoDatabase
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.toList
+import org.bson.Document
 import org.bson.conversions.Bson
 import org.bson.types.ObjectId
-import org.litote.kmongo.*
-import org.litote.kmongo.MongoOperator.eq
-import org.litote.kmongo.coroutine.CoroutineDatabase
-import org.litote.kmongo.coroutine.aggregate
+
 
 class FriendRequestDataSourceImpl(
-    db: CoroutineDatabase
+    db: MongoDatabase
 ) : FriendRequestDataSource {
 
     private val friendRequests = db.getCollection<FriendRequest>("friendRequest")
@@ -23,16 +25,25 @@ class FriendRequestDataSourceImpl(
 
     override suspend fun getFriendRequestById(requestId: String): FriendRequest {
         val requestObjectId = ObjectId(requestId)
-        return friendRequests.findOne(FriendRequest::id eq requestObjectId)!!
+        return friendRequests.find(
+            Filters.eq(FriendRequest::_id.name, requestObjectId)
+        ).firstOrNull() ?: throw Exception("Friend request not found")
     }
 
     override suspend fun sendFriendRequest(friend: FriendRequest): Boolean {
-        val findSendFR = friendRequests.findOne(
-            FriendRequest::senderId eq friend.senderId, FriendRequest::receiverId eq friend.receiverId
-        )
-        val findReceiveFR = friendRequests.findOne(
-            FriendRequest::senderId eq friend.receiverId, FriendRequest::receiverId eq friend.senderId
-        )
+        val findSendFR = friendRequests.find(
+            Filters.and(
+                Filters.eq(FriendRequest::senderId.name, friend.senderId),
+                Filters.eq(FriendRequest::receiverId.name, friend.receiverId)
+            )
+        ).firstOrNull()
+        val findReceiveFR = friendRequests.find(
+            Filters.and(
+                Filters.eq(FriendRequest::senderId.name, friend.receiverId),
+                Filters.eq(FriendRequest::receiverId.name, friend.senderId)
+            )
+        ).firstOrNull()
+
         if (findSendFR != null && findReceiveFR != null) {
             return false
         }
@@ -41,61 +52,82 @@ class FriendRequestDataSourceImpl(
 
     override suspend fun cancelFriendRequest(requestId: String): Boolean {
         val requestObjectId = ObjectId(requestId)
-        return friendRequests.deleteOne(FriendRequest::id eq requestObjectId).wasAcknowledged()
+        return friendRequests.deleteOne(Filters.eq(FriendRequest::_id.name, requestObjectId)).wasAcknowledged()
     }
 
     override suspend fun acceptFriendRequest(requestId: String): Boolean {
         val requestObjectId = ObjectId(requestId)
         return friendRequests.updateOne(
-            FriendRequest::id eq requestObjectId, setValue(FriendRequest::status, FriendRequestStatus.ACCEPTED.name)
+            Filters.eq(FriendRequest::_id.name, requestObjectId),
+            Updates.set(FriendRequest::status.name, FriendRequestStatus.ACCEPTED.name)
         ).wasAcknowledged()
     }
 
     override suspend fun declineFriendRequest(requestId: String): Boolean {
         val requestObjectId = ObjectId(requestId)
         return friendRequests.updateOne(
-            FriendRequest::id eq requestObjectId, setValue(FriendRequest::status, FriendRequestStatus.REJECTED.name)
+            Filters.eq(FriendRequest::_id.name, requestObjectId),
+            Updates.set(FriendRequest::status.name, FriendRequestStatus.REJECTED.name)
         ).wasAcknowledged()
     }
 
     private suspend fun getFriendRequestsWithAggregation(userId: String, type: Int): List<FriendRequest> {
         val matchType: Bson = when (type) {
-            0 -> FriendRequest::senderId eq userId
-            else -> FriendRequest::receiverId eq userId
+            0 -> Filters.eq(FriendRequest::senderId.name, userId)
+            else -> Filters.eq(FriendRequest::receiverId.name, userId)
         }
+        val senderLet = listOf(Variable("senderId", "\$senderId"))
+        val senderPipeline = listOf(
+            Aggregates.match(
+                Filters.expr(
+//                    Filters.eq(User::_id.name, Document("\$toObjectId", FriendRequest::senderId.name))
+                    Document("\$eq", listOf("\$_id", Document("\$toObjectId", "\$\$senderId")))
+                )
+            )
+        )
+        val receiverLet = listOf(Variable("receiverId", "\$receiverId"))
+        val receiverPipeline = listOf(
+            Aggregates.match(
+                Filters.expr(
+//                    Filters.eq(User::_id.name, Document("\$toObjectId", FriendRequest::senderId.name))
+                    Document("\$eq", listOf("\$_id", Document("\$toObjectId", "\$\$receiverId")))
+                )
+            )
+        )
+
         return friendRequests.aggregate<FriendRequest>(
-            match(matchType),
-            lookup(
-                from = "user",
-                let = listOf(FriendRequest::senderId.variableDefinition()),
-                resultProperty = FriendRequestWithAggregation::sender,
-                pipeline = arrayOf(
-                    match(
-                        expr(
-                            """{$eq: ["$ _id", { $ toObjectId: "$$ senderId"}] }""".trimIndent().formatJson().bson
+            listOf(
+                Aggregates.match(matchType),
+                Aggregates.lookup(
+                    "user",
+                    senderLet,
+                    senderPipeline,
+                    FriendRequestWithAggregation::sender.name
+                ),
+                Aggregates.lookup(
+                    "user",
+                    receiverLet,
+                    receiverPipeline,
+                    FriendRequestWithAggregation::receiver.name
+                ),
+                Aggregates.project(
+                    Projections.fields(
+                        Projections.include(
+                            FriendRequest::senderId.name,
+                            FriendRequest::receiverId.name,
+                            FriendRequest::status.name,
+                            FriendRequest::_id.name
+                        ),
+                        Projections.computed(
+                            FriendRequest::senderName.name,
+                            Document("\$arrayElemAt", listOf("\$sender.username", 0))
+                        ),
+                        Projections.computed(
+                            FriendRequest::receiverName.name,
+                            Document("\$arrayElemAt", listOf("\$receiver.username", 0))
                         )
                     )
                 )
-            ),
-            lookup(
-                from = "user",
-                let = listOf(FriendRequest::receiverId.variableDefinition()),
-                resultProperty = FriendRequestWithAggregation::receiver,
-                pipeline = arrayOf(
-                    match(
-                        expr(
-                            """{$eq: ["$ _id", { $ toObjectId: "$$ receiverId"}] }""".trimIndent().formatJson().bson
-                        )
-                    )
-                )
-            ),
-            project(
-                FriendRequest::senderId from FriendRequest::senderId,
-                FriendRequest::receiverId from FriendRequest::receiverId,
-                FriendRequest::status from FriendRequest::status,
-                FriendRequest::id from FriendRequest::id,
-                """{senderName: { $ arrayElemAt: ["$ sender.username", 0] }}""".trimIndent().formatJson().bson,
-                """{receiverName: { $ arrayElemAt: ["$ receiver.username", 0] }}""".trimIndent().formatJson().bson
             )
         ).toList()
     }

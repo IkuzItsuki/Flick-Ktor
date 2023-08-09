@@ -2,8 +2,8 @@ package com.ikuzMirel.data.friends
 
 import com.ikuzMirel.data.user.User
 import com.ikuzMirel.serializer.ObjectIdSerializer
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.bson.codecs.pojo.annotations.BsonId
 import org.bson.types.ObjectId
 
 enum class FriendRequestStatus {
@@ -19,8 +19,9 @@ data class FriendRequest(
     val receiverId: String,
     val receiverName: String,
     val status: String,
-    @Serializable(with = ObjectIdSerializer::class)
-    @BsonId val id: ObjectId = ObjectId()
+    @SerialName("_id")
+    @Serializable(ObjectIdSerializer::class)
+    val _id: ObjectId = ObjectId()
 )
 
 @Serializable
@@ -32,6 +33,7 @@ data class FriendRequestWithAggregation(
     val status: String,
     val sender: User,
     val receiver: User,
-    @Serializable(with = ObjectIdSerializer::class)
-    @BsonId val id: ObjectId = ObjectId()
+    @SerialName("_id")
+    @Serializable(ObjectIdSerializer::class)
+    val _id: ObjectId,
 )

@@ -45,7 +45,7 @@ fun Route.sendFriendRequest(
         }
 
         val friendAlreadyExists =
-            friendDataSource.getAllFriends(request.senderId).find { it.userId == ObjectId(request.receiverId) }
+            friendDataSource.getAllFriends(request.senderId).find { it._id == ObjectId(request.receiverId) }
         if (friendAlreadyExists != null) {
             call.respond(HttpStatusCode.Conflict, "Friend already exists")
             return@post
@@ -160,18 +160,18 @@ fun Route.acceptFriendRequest(
 
         val messageCollection = messageDataSource.createMessageCollection()
         val senderAddFriend = friendDataSource.addFriend(
-            sender.id.toString(),
+            sender._id.toString(),
             Friend(
                 username = receiver.username,
-                userId = receiver.id,
+                _id = receiver._id,
                 collectionId = messageCollection
             )
         )
         val receiverAddFriend = friendDataSource.addFriend(
-            receiver.id.toString(),
+            receiver._id.toString(),
             Friend(
                 username = sender.username,
-                userId = sender.id,
+                _id = sender._id,
                 collectionId = messageCollection
             )
         )
@@ -286,21 +286,21 @@ fun Route.searchForFriends(
 
         val friends = friendDataSource.getAllFriends(requestUserId)
         val userListWithoutRequester = users.filter {
-            it.id.toString() != requestUserId
+            it._id.toString() != requestUserId
         }
 
         val result = userListWithoutRequester.map {
             val friendWithMe = friends.any { friend ->
-                friend.userId == it.id
+                friend._id == it._id
             }
 
             UserSearchResult(
-                userId = it.id.toString(),
+                userId = it._id.toString(),
                 username = it.username,
                 friendWithMe = friendWithMe,
                 collectionId = if (friendWithMe) {
                     friends.first { friend ->
-                        friend.userId == it.id
+                        friend._id == it._id
                     }.collectionId
                 } else {
                     ""
@@ -319,10 +319,8 @@ fun Route.getFriends(
     friendDataSource: FriendDataSource
 ) {
     get("user/friends") {
-        val id = call.parameters["id"] ?: kotlin.run {
-            call.respond(HttpStatusCode.BadRequest)
-            return@get
-        }
+        val id = call.principal<JWTPrincipal>()?.getClaim("userId", String::class)!!
+
         val friends = friendDataSource.getAllFriends(id)
         if (friends.isEmpty()) {
             call.respond(HttpStatusCode.OK, FriendListResponse(emptyList()))
@@ -340,10 +338,8 @@ fun Route.getFriend(
     friendDataSource: FriendDataSource
 ) {
     get("user/friend") {
-        val id = call.parameters["id"] ?: kotlin.run {
-            call.respond(HttpStatusCode.BadRequest)
-            return@get
-        }
+        val id = call.principal<JWTPrincipal>()?.getClaim("userId", String::class)!!
+
         val friendId = call.parameters["friendId"] ?: kotlin.run {
             call.respond(HttpStatusCode.BadRequest)
             return@get

@@ -25,7 +25,7 @@ fun Route.signUp(
     userDataSource: UserDataSource
 ) {
     post("signUp") {
-        val request = call.receiveNullable<AuthRequest>() ?: kotlin.run {
+        val request = call.receiveNullable<AuthRequest>() ?: run {
             call.respond(HttpStatusCode.BadRequest)
             return@post
         }
@@ -53,7 +53,7 @@ fun Route.signUp(
         val userData = User(
             username = request.username,
             email = request.email,
-            id = auth.id
+            _id = auth._id
         )
 
         val authWasAcknowledged = authSource.insertAuth(auth)
@@ -74,7 +74,7 @@ fun Route.signIn(
     tokenConfig: TokenConfig
 ) {
     post("signIn") {
-        val request = call.receiveNullable<AuthRequest>() ?: kotlin.run {
+        val request = call.receiveNullable<AuthRequest>() ?: run {
             call.respond(HttpStatusCode.BadRequest)
             return@post
         }
@@ -101,7 +101,7 @@ fun Route.signIn(
             config = tokenConfig,
             TokenClaim(
                 name = "userId",
-                value = user.id.toString()
+                value = user._id.toString()
             )
         )
 
@@ -110,7 +110,7 @@ fun Route.signIn(
             message = AuthResponse(
                 token = token,
                 username = user.username,
-                userId = user.id.toString()
+                userId = user._id.toString()
             )
         )
     }
