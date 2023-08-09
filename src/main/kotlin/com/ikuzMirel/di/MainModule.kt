@@ -10,6 +10,7 @@ import com.ikuzMirel.data.message.MessageDataSource
 import com.ikuzMirel.data.message.MessageDataSourceImpl
 import com.ikuzMirel.data.user.UserDataSource
 import com.ikuzMirel.data.user.UserDataSourceImpl
+import com.ikuzMirel.initializer.DatabaseInitializer
 import com.ikuzMirel.websocket.WebSocketHandler
 import com.mongodb.kotlin.client.coroutine.MongoClient
 import com.mongodb.kotlin.client.coroutine.MongoDatabase
@@ -19,15 +20,18 @@ val mongoPW: String = System.getenv("MONGO_PW")
 const val authDBName = "auths"
 const val userDataDBName = "userData"
 const val massageDBName = "messages"
+val client =
+    MongoClient.create("mongodb+srv://ikuzMirel:$mongoPW@cluster1.cailxou.mongodb.net/?retryWrites=true&w=majority")
 
 val mainModule = module {
 
     fun getDB(dbName: String): MongoDatabase {
-        return MongoClient.create(
-            "mongodb+srv://ikuzMirel:$mongoPW@cluster1.cailxou.mongodb.net/?retryWrites=true&w=majority"
-        ).getDatabase(dbName)
+        return client.getDatabase(dbName)
     }
 
+    single<DatabaseInitializer> {
+        DatabaseInitializer(client)
+    }
     single<AuthSource> {
         AuthSourceImpl(getDB(authDBName))
     }
