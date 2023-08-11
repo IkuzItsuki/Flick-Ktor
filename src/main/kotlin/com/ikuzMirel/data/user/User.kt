@@ -11,7 +11,7 @@ data class User(
     val username: String,
     val email: String,
     val friends: List<Friend> = emptyList(),
-    @SerialName("_id")
+    @SerialName("id")
     @Serializable(ObjectIdSerializer::class)
     val _id: ObjectId
 )

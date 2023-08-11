@@ -10,7 +10,7 @@ data class Message(
     val content: String,
     val senderUid: String,
     val timestamp: Long,
-    @SerialName("_id")
+    @SerialName("id")
     @Serializable(ObjectIdSerializer::class)
     val _id: ObjectId = ObjectId()
 )

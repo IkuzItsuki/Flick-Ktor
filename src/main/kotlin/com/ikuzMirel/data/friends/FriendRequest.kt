@@ -19,7 +19,7 @@ data class FriendRequest(
     val receiverId: String,
     val receiverName: String,
     val status: String,
-    @SerialName("_id")
+    @SerialName("id")
     @Serializable(ObjectIdSerializer::class)
     val _id: ObjectId = ObjectId()
 )
@@ -33,7 +33,7 @@ data class FriendRequestWithAggregation(
     val status: String,
     val sender: User,
     val receiver: User,
-    @SerialName("_id")
+    @SerialName("id")
     @Serializable(ObjectIdSerializer::class)
     val _id: ObjectId,
 )
