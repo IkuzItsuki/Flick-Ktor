@@ -12,5 +12,5 @@ data class Message(
     val timestamp: Long,
     @SerialName("id")
     @Serializable(ObjectIdSerializer::class)
-    val _id: ObjectId = ObjectId()
+    val _id: ObjectId
 )

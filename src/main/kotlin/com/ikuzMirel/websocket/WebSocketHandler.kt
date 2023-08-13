@@ -10,6 +10,7 @@ import io.ktor.websocket.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
+import org.bson.types.ObjectId
 import java.util.concurrent.ConcurrentHashMap
 
 class WebSocketHandler(
@@ -42,11 +43,16 @@ class WebSocketHandler(
         val msg = jsonObject["message"].removeQuotes()
         val collectionId = jsonObject["cid"].removeQuotes()
         val receiverId = jsonObject["receiverId"].removeQuotes()
+        val id = jsonObject["id"].removeQuotes()
+
+        val timestamp = System.currentTimeMillis()
+        println("timestamp: $timestamp")
 
         val messageEntity = Message(
             content = msg,
             senderUid = userId,
-            timestamp = System.currentTimeMillis()
+            timestamp = timestamp,
+            _id = ObjectId(id)
         )
         val writeSuccess = messageDataSource.insertMessage(collectionId, messageEntity)
 
@@ -54,7 +60,7 @@ class WebSocketHandler(
             content = messageEntity.content,
             senderUid = userId,
             timestamp = messageEntity.timestamp,
-            id = messageEntity._id.toString(),
+            id = id,
             collectionId = collectionId
         )
 
