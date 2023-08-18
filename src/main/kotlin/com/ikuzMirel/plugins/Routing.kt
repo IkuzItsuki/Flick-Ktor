@@ -33,7 +33,6 @@ fun Application.configureRouting(
 
         authenticate("auth-jwt") {
             authenticate()
-            getSecretInfo()
 
             //User info
             getUserInfo(userDataSource)

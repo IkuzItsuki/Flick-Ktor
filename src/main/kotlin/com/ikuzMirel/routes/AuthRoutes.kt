@@ -11,10 +11,10 @@ import com.ikuzMirel.security.hashing.SaltedHash
 import com.ikuzMirel.security.token.TokenClaim
 import com.ikuzMirel.security.token.TokenConfig
 import com.ikuzMirel.security.token.TokenService
+import io.github.smiley4.ktorswaggerui.dsl.get
+import io.github.smiley4.ktorswaggerui.dsl.post
 import io.ktor.http.*
 import io.ktor.server.application.*
-import io.ktor.server.auth.*
-import io.ktor.server.auth.jwt.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -24,7 +24,38 @@ fun Route.signUp(
     authSource: AuthSource,
     userDataSource: UserDataSource
 ) {
-    post("signUp") {
+    post("signUp", {
+        tags = listOf("Auth")
+        description = "Sign up a new user."
+        request {
+            body<AuthRequest> {
+                example(
+                    "Default",
+                    AuthRequest(
+                        "DemoUser",
+                        "Aa123456",
+                        "abc@abc.com"
+                    )
+                )
+                required = true
+            }
+        }
+        response {
+            HttpStatusCode.BadRequest to {
+                description = "Invalid request."
+            }
+            HttpStatusCode.Conflict to {
+                body<String> {
+                    example("User already exists", "User already exists")
+                    example("Incorrect credentials", "Username or password is incorrect")
+                    example("Write operation error", "The data could not be saved")
+                }
+            }
+            HttpStatusCode.OK to {
+            }
+        }
+    }) {
+
         val request = call.receiveNullable<AuthRequest>() ?: run {
             call.respond(HttpStatusCode.BadRequest)
             return@post
@@ -39,7 +70,7 @@ fun Route.signUp(
         val areFieldsBlank = request.username.isBlank() || request.password.isBlank()
         val isPwTooShort = request.password.length < 8
         if (areFieldsBlank || isPwTooShort) {
-            call.respond(HttpStatusCode.Conflict)
+            call.respond(HttpStatusCode.Conflict, "Username or password is incorrect")
             return@post
         }
 
@@ -59,7 +90,7 @@ fun Route.signUp(
         val authWasAcknowledged = authSource.insertAuth(auth)
         val userWasAcknowledged = userDataSource.insertUser(userData)
         if (!authWasAcknowledged || !userWasAcknowledged) {
-            call.respond(HttpStatusCode.Conflict)
+            call.respond(HttpStatusCode.Conflict, "The data could not be saved")
             return@post
         }
 
@@ -73,7 +104,43 @@ fun Route.signIn(
     tokenService: TokenService,
     tokenConfig: TokenConfig
 ) {
-    post("signIn") {
+    post("signIn", {
+        tags = listOf("Auth")
+        description = "Sign in a user."
+        request {
+            body<AuthRequest> {
+                example(
+                    "Default",
+                    AuthRequest(
+                        "DemoUser",
+                        "Aa123456",
+                        ""
+                    )
+                )
+                required = true
+            }
+        }
+        response {
+            HttpStatusCode.BadRequest to {
+                description = "Invalid request."
+            }
+            HttpStatusCode.Conflict to {
+                description = "Incorrect username or password."
+            }
+            HttpStatusCode.OK to {
+                body<AuthResponse> {
+                    example(
+                        "Default",
+                        AuthResponse(
+                            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+                            "DemoUser",
+                            "64d3f88564bb17218acf795a"
+                        )
+                    )
+                }
+            }
+        }
+    }) {
         val request = call.receiveNullable<AuthRequest>() ?: run {
             call.respond(HttpStatusCode.BadRequest)
             return@post
@@ -117,15 +184,18 @@ fun Route.signIn(
 }
 
 fun Route.authenticate() {
-    get("authenticate") {
+    get("authenticate", {
+        tags = listOf("Auth")
+        description = "Authenticate a user."
+        securitySchemeName = "FlickJWTAuth"
+        response {
+            HttpStatusCode.Unauthorized to {
+                description = "Unauthorized."
+            }
+            HttpStatusCode.OK to {
+            }
+        }
+    }) {
         call.respond(HttpStatusCode.OK)
-    }
-}
-
-fun Route.getSecretInfo() {
-    get("secret") {
-        val principal = call.principal<JWTPrincipal>()
-        val userId = principal?.getClaim("userId", String::class)
-        call.respond(HttpStatusCode.OK, "UserId is $userId")
     }
 }

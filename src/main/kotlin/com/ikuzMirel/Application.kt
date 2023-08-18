@@ -39,4 +39,6 @@ fun Application.module() {
     configureSerialization()
     configureSockets()
     configureRouting(hashingService, tokenConfig, tokenService)
+    configureSwaggerUI()
+    configureCORS()
 }

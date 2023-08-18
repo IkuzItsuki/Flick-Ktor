@@ -2,20 +2,32 @@ package com.ikuzMirel.routes
 
 import com.ikuzMirel.exception.WSUserAlreadyExistsException
 import com.ikuzMirel.session.WebSocketSession
+import com.ikuzMirel.util.webSocket
 import com.ikuzMirel.websocket.WebSocketHandler
+import io.github.smiley4.ktorswaggerui.dsl.get
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.sessions.*
-import io.ktor.server.websocket.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.channels.consumeEach
 
 fun Route.connectToWebsocket(
     webSocketHandler: WebSocketHandler
 ) {
-    webSocket(path = "websocket") {
+    webSocket(path = "websocket", {
+        tags = listOf("Websocket")
+        description = "Connect to WebSocket"
+        securitySchemeName = "FlickJWTAuth"
+        request {
+            queryParameter<String>("Uid") {
+                description = "User ID"
+                required = true
+                example = "64d3fa5564bb17218acf795e"
+            }
+        }
+    }) {
         val session = call.sessions.get<WebSocketSession>()
 
         if (session == null) {
@@ -49,7 +61,24 @@ fun Route.connectToWebsocket(
 }
 
 fun Route.showAllConnections(webSocketHandler: WebSocketHandler) {
-    get("connections") {
+    get("connections", {
+        tags = listOf("Websocket")
+        description = "Show all WebSocket connections"
+        securitySchemeName = "FlickJWTAuth"
+        response {
+            HttpStatusCode.OK to {
+                body<List<String>> {
+                    example(
+                        "Default",
+                        listOf(
+                            "64d3fa5564bb17218acf795e",
+                            "64d3fa5564bb17218acf795f",
+                        )
+                    )
+                }
+            }
+        }
+    }) {
         call.respond(HttpStatusCode.OK, webSocketHandler.connections.keys.toList())
     }
 }

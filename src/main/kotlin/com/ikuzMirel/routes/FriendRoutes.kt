@@ -3,13 +3,12 @@ package com.ikuzMirel.routes
 import com.ikuzMirel.data.friends.*
 import com.ikuzMirel.data.message.MessageDataSource
 import com.ikuzMirel.data.requests.FriendReqRequest
-import com.ikuzMirel.data.responses.FriendListResponse
 import com.ikuzMirel.data.responses.FriendReqResponse
-import com.ikuzMirel.data.responses.UserListResponse
 import com.ikuzMirel.data.user.UserDataSource
-import com.ikuzMirel.data.user.UserSearchResult
 import com.ikuzMirel.websocket.WebSocketHandler
 import com.ikuzMirel.websocket.WebSocketMessage
+import io.github.smiley4.ktorswaggerui.dsl.get
+import io.github.smiley4.ktorswaggerui.dsl.post
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -31,8 +30,59 @@ fun Route.sendFriendRequest(
     friendDataSource: FriendDataSource,
     webSocketHandler: WebSocketHandler
 ) {
-
-    post("friendRequests/send") {
+    post("friendRequests/send", {
+        tags = listOf("FriendRequest")
+        description = "Send friend request"
+        securitySchemeName = "FlickJWTAuth"
+        request {
+            body<FriendReqRequest> {
+                description = "Friend request data"
+                required = true
+                example(
+                    "Default",
+                    FriendReqRequest(
+                        "64d3fa5564bb17218acf795e",
+                        "64d3fa5564bb17218acf795e"
+                    )
+                )
+            }
+        }
+        response {
+            HttpStatusCode.BadRequest to {
+                description = "The request is not valid"
+            }
+            HttpStatusCode.Conflict to {
+                body<String> {
+                    example(
+                        "ID mismatch",
+                        "Friend request sender id does not match with token"
+                    )
+                    example(
+                        "Already Friend",
+                        "User is already friend with the other user"
+                    )
+                    example(
+                        "Database operation failed",
+                        "Friend request not sent"
+                    )
+                }
+            }
+            HttpStatusCode.OK to {
+                body<FriendRequest> {
+                    example(
+                        "Default",
+                        FriendRequest(
+                            "64d3fa5564bb17218acf795e",
+                            "DemoUser",
+                            "64d3fa5564bb17218acf795e",
+                            "DemoUser2",
+                            "PENDING"
+                        )
+                    )
+                }
+            }
+        }
+    }) {
         val request = call.receiveNullable<FriendReqRequest>() ?: kotlin.run {
             call.respond(HttpStatusCode.BadRequest)
             return@post
@@ -86,7 +136,42 @@ fun Route.sendFriendRequest(
 fun Route.cancelFriendRequest(
     friendRequestDataSource: FriendRequestDataSource
 ) {
-    post("friendRequests/cancel") {
+    post("friendRequests/cancel", {
+        tags = listOf("FriendRequest")
+        description = "Cancel friend request"
+        securitySchemeName = "FlickJWTAuth"
+        request {
+            queryParameter<String>("id") {
+                description = "Friend request id"
+                required = true
+                example = "64d3fa5564bb17218acf795e"
+            }
+        }
+        response {
+            HttpStatusCode.BadRequest to {
+                description = "The request is not valid"
+            }
+            HttpStatusCode.Conflict to {
+                body<String> {
+                    example(
+                        "No friend request found",
+                        "Friend request does not exist"
+                    )
+                    example(
+                        "ID mismatch",
+                        "Friend request is not sent by user"
+                    )
+                    example(
+                        "Database operation failed",
+                        "Friend request not cancelled"
+                    )
+                }
+            }
+            HttpStatusCode.OK to {
+                description = "Friend request cancelled"
+            }
+        }
+    }) {
         val request = call.parameters["id"] ?: kotlin.run {
             call.respond(HttpStatusCode.BadRequest)
             return@post
@@ -123,7 +208,42 @@ fun Route.acceptFriendRequest(
     messageDataSource: MessageDataSource,
     webSocketHandler: WebSocketHandler
 ) {
-    post("friendRequests/accept") {
+    post("friendRequests/accept", {
+        tags = listOf("FriendRequest")
+        description = "Accept friend request"
+        securitySchemeName = "FlickJWTAuth"
+        request {
+            queryParameter<String>("id") {
+                description = "Friend request id"
+                required = true
+                example = "64d3fa5564bb17218acf795e"
+            }
+        }
+        response {
+            HttpStatusCode.BadRequest to {
+                description = "The request is not valid"
+            }
+            HttpStatusCode.Conflict to {
+                body<String> {
+                    example(
+                        "No friend request found",
+                        "Friend request does not exist"
+                    )
+                    example(
+                        "ID mismatch",
+                        "Friend request is accepted by wrong user"
+                    )
+                    example(
+                        "Database operation failed",
+                        "Friend request not cancelled"
+                    )
+                }
+            }
+            HttpStatusCode.OK to {
+                description = "Friend request accepted"
+            }
+        }
+    }) {
         val request = call.parameters["id"] ?: kotlin.run {
             call.respond(HttpStatusCode.BadRequest)
             return@post
@@ -200,7 +320,42 @@ fun Route.rejectFriendRequest(
     friendRequestDataSource: FriendRequestDataSource,
     webSocketHandler: WebSocketHandler
 ) {
-    post("friendRequests/reject") {
+    post("friendRequests/reject", {
+        tags = listOf("FriendRequest")
+        description = "Reject friend request"
+        securitySchemeName = "FlickJWTAuth"
+        request {
+            queryParameter<String>("id") {
+                description = "Friend request id"
+                required = true
+                example = "64d3fa5564bb17218acf795e"
+            }
+        }
+        response {
+            HttpStatusCode.BadRequest to {
+                description = "The request is not valid"
+            }
+            HttpStatusCode.Conflict to {
+                body<String> {
+                    example(
+                        "No friend request found",
+                        "Friend request does not exist"
+                    )
+                    example(
+                        "ID mismatch",
+                        "Friend request is rejected by wrong user"
+                    )
+                    example(
+                        "Database operation failed",
+                        "Friend request not cancelled"
+                    )
+                }
+            }
+            HttpStatusCode.OK to {
+                description = "Friend request rejected"
+            }
+        }
+    }) {
         val request = call.parameters["id"] ?: kotlin.run {
             call.respond(HttpStatusCode.BadRequest)
             return@post
@@ -213,7 +368,7 @@ fun Route.rejectFriendRequest(
             return@post
         }
         if (friendRequest.receiverId != requestUserId) {
-            call.respond(HttpStatusCode.Conflict, "Friend request is accepted by wrong user")
+            call.respond(HttpStatusCode.Conflict, "Friend request is rejected by wrong user")
             return@post
         }
         val newFriendRequest = friendRequest.copy(status = FriendRequestStatus.REJECTED.name)
@@ -243,7 +398,42 @@ fun Route.rejectFriendRequest(
 fun Route.getAllSentFriendRequests(
     friendRequestDataSource: FriendRequestDataSource
 ) {
-    get("friendRequests/sent") {
+    get("friendRequests/sent", {
+        tags = listOf("FriendRequest")
+        description = "Get all sent friend requests"
+        securitySchemeName = "FlickJWTAuth"
+        response {
+            HttpStatusCode.OK to {
+                body<FriendReqResponse> {
+                    example(
+                        "Default",
+                        FriendReqResponse(
+                            listOf(
+                                FriendRequest(
+                                    "64d3fa5564bb17218acf795e",
+                                    "DemoUser",
+                                    "64d3fa5564bb17218acf795e",
+                                    "DemoUser2",
+                                    "PENDING"
+                                ),
+                                FriendRequest(
+                                    "64d3fa5564bb17218acf795e",
+                                    "DemoUser",
+                                    "64d3fa5564bb17218acf795e",
+                                    "DemoUser2",
+                                    "PENDING"
+                                )
+                            )
+                        )
+                    )
+                    example(
+                        "No friend requests",
+                        FriendReqResponse(emptyList())
+                    )
+                }
+            }
+        }
+    }) {
         val id = call.principal<JWTPrincipal>()?.getClaim("userId", String::class)!!
         val friendRequests = friendRequestDataSource.getAllSentFriendRequests(id)
         call.respond(
@@ -256,102 +446,47 @@ fun Route.getAllSentFriendRequests(
 fun Route.getAllReceivedFriendRequests(
     friendRequestDataSource: FriendRequestDataSource
 ) {
-    get("friendRequests/received") {
+    get("friendRequests/received", {
+        tags = listOf("FriendRequest")
+        description = "Get all received friend requests"
+        securitySchemeName = "FlickJWTAuth"
+        response {
+            HttpStatusCode.OK to {
+                body<FriendReqResponse> {
+                    example(
+                        "Default",
+                        FriendReqResponse(
+                            listOf(
+                                FriendRequest(
+                                    "64d3fa5564bb17218acf795e",
+                                    "DemoUser",
+                                    "64d3fa5564bb17218acf795e",
+                                    "DemoUser2",
+                                    "PENDING"
+                                ),
+                                FriendRequest(
+                                    "64d3fa5564bb17218acf795e",
+                                    "DemoUser",
+                                    "64d3fa5564bb17218acf795e",
+                                    "DemoUser2",
+                                    "PENDING"
+                                )
+                            )
+                        )
+                    )
+                    example(
+                        "No friend requests",
+                        FriendReqResponse(emptyList())
+                    )
+                }
+            }
+        }
+    }) {
         val id = call.principal<JWTPrincipal>()?.getClaim("userId", String::class)!!
         val friendRequests = friendRequestDataSource.getAllReceivedFriendRequests(id)
         call.respond(
             status = HttpStatusCode.OK,
             message = FriendReqResponse(friendRequests)
-        )
-    }
-}
-
-fun Route.searchForFriends(
-    userDataSource: UserDataSource,
-    friendDataSource: FriendDataSource
-) {
-    get("user/search") {
-        val username = call.parameters["username"] ?: kotlin.run {
-            call.respond(HttpStatusCode.BadRequest)
-            return@get
-        }
-
-        val requestUserId = call.principal<JWTPrincipal>()?.getClaim("userId", String::class)!!
-
-        val users = userDataSource.getUsersByName(username)
-        if (users.isEmpty()) {
-            call.respond(HttpStatusCode.OK, UserListResponse(emptyList()))
-            return@get
-        }
-
-        val friends = friendDataSource.getAllFriends(requestUserId)
-        val userListWithoutRequester = users.filter {
-            it._id.toString() != requestUserId
-        }
-
-        val result = userListWithoutRequester.map {
-            val friendWithMe = friends.any { friend ->
-                friend._id == it._id
-            }
-
-            UserSearchResult(
-                userId = it._id.toString(),
-                username = it.username,
-                friendWithMe = friendWithMe,
-                collectionId = if (friendWithMe) {
-                    friends.first { friend ->
-                        friend._id == it._id
-                    }.collectionId
-                } else {
-                    ""
-                }
-            )
-        }
-
-        call.respond(
-            status = HttpStatusCode.OK,
-            message = UserListResponse(result)
-        )
-    }
-}
-
-fun Route.getFriends(
-    friendDataSource: FriendDataSource
-) {
-    get("user/friends") {
-        val id = call.principal<JWTPrincipal>()?.getClaim("userId", String::class)!!
-
-        val friends = friendDataSource.getAllFriends(id)
-        if (friends.isEmpty()) {
-            call.respond(HttpStatusCode.OK, FriendListResponse(emptyList()))
-            return@get
-        }
-        println(FriendListResponse(friends))
-        call.respond(
-            status = HttpStatusCode.OK,
-            message = FriendListResponse(friends)
-        )
-    }
-}
-
-fun Route.getFriend(
-    friendDataSource: FriendDataSource
-) {
-    get("user/friend") {
-        val id = call.principal<JWTPrincipal>()?.getClaim("userId", String::class)!!
-
-        val friendId = call.parameters["friendId"] ?: kotlin.run {
-            call.respond(HttpStatusCode.BadRequest)
-            return@get
-        }
-        val friend = friendDataSource.getFriendById(id, friendId) ?: run {
-            call.respond(HttpStatusCode.Conflict, "Friend not found")
-            return@get
-        }
-
-        call.respond(
-            status = HttpStatusCode.OK,
-            message = friend
         )
     }
 }
