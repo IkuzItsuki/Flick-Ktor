@@ -1,6 +1,7 @@
 package com.ikuzMirel
 
 import com.ikuzMirel.di.mainModule
+import com.ikuzMirel.di.provideDBModule
 import com.ikuzMirel.initializer.DatabaseInitializer
 import com.ikuzMirel.plugins.*
 import com.ikuzMirel.security.hashing.SHA256HashingService
@@ -16,8 +17,8 @@ fun main(args: Array<String>): Unit =
     io.ktor.server.netty.EngineMain.main(args)
 @Suppress("unused") // application.conf references the main function. This annotation prevents the IDE from marking it as unused.
 fun Application.module() {
-    install(Koin){
-        modules(mainModule)
+    install(Koin) {
+        modules(provideDBModule(environment) + mainModule)
     }
 
     val mongoClient by inject<DatabaseInitializer>()
