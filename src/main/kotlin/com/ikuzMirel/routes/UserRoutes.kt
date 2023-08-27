@@ -189,7 +189,6 @@ fun Route.getFriends(
             call.respond(HttpStatusCode.OK, FriendListResponse(emptyList()))
             return@get
         }
-        println(FriendListResponse(friends))
         call.respond(
             status = HttpStatusCode.OK,
             message = FriendListResponse(friends)

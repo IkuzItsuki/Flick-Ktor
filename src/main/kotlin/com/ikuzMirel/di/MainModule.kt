@@ -1,10 +1,12 @@
 package com.ikuzMirel.di
 
 import com.ikuzMirel.mq.Channel
-import com.ikuzMirel.mq.ChatPublisher
 import com.ikuzMirel.mq.ChatSubscriber
+import com.ikuzMirel.mq.FriendRequestSubscriber
+import com.ikuzMirel.mq.Publisher
 import com.ikuzMirel.websocket.WebSocketConnection
 import com.ikuzMirel.websocket.WebSocketHandler
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import java.util.concurrent.ConcurrentHashMap
 
@@ -15,16 +17,25 @@ val mainModule = module {
     single {
         connections
     }
-    single {
-        ChatPublisher()
+    single(named("chatPublisher")) {
+        Publisher()
     }
-    single {
+    single(named("friendRequestPublisher")) {
+        Publisher()
+    }
+    single(named("chatChannel")) {
         Channel("chat")
     }
-    single {
+    single(named("friendRequestChannel")) {
+        Channel("friendRequest")
+    }
+    single(named("chatSubscriber")) {
         ChatSubscriber(connections)
     }
+    single(named("friendRequestSubscriber")) {
+        FriendRequestSubscriber(connections)
+    }
     single {
-        WebSocketHandler(get(), get(), get(), get(), connections)
+        WebSocketHandler(get(), get(), get(named("chatPublisher")), connections)
     }
 }

@@ -1,11 +1,13 @@
 package com.ikuzMirel.websocket
 
-import com.ikuzMirel.data.message.Message
-import com.ikuzMirel.data.message.MessageDataSource
-import com.ikuzMirel.data.message.MessageWithCid
+import com.ikuzMirel.data.chatMessage.ChatMessage
+import com.ikuzMirel.data.chatMessage.ChatMessageDataSource
+import com.ikuzMirel.data.chatMessage.ChatMessageWithCid
 import com.ikuzMirel.data.user.UserDataSource
 import com.ikuzMirel.exception.WSUserAlreadyExistsException
 import com.ikuzMirel.extension.removeQuotes
+import com.ikuzMirel.mq.Message
+import com.ikuzMirel.mq.Publisher
 import io.ktor.websocket.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -14,11 +16,12 @@ import org.bson.types.ObjectId
 import java.util.concurrent.ConcurrentHashMap
 
 class WebSocketHandler(
-    private val messageDataSource: MessageDataSource,
-    private val userDataSource: UserDataSource
+    private val chatMessageDataSource: ChatMessageDataSource,
+    private val userDataSource: UserDataSource,
+    private val chatPublisher: Publisher,
+    private val connections: ConcurrentHashMap<String, WebSocketConnection>
 ) {
 
-    val connections = ConcurrentHashMap<String, WebSocketConnection>()
 
     // TODO: WSUserAlreadyExistsException() will be removed to allow multiple connections like Web and Desktop
     suspend fun onConnect(
@@ -45,28 +48,25 @@ class WebSocketHandler(
         val receiverId = jsonObject["receiverId"].removeQuotes()
         val id = jsonObject["id"].removeQuotes()
 
-        val timestamp = System.currentTimeMillis()
-        println("timestamp: $timestamp")
-
-        val messageEntity = Message(
+        val chatMessageEntity = ChatMessage(
             content = msg,
             senderUid = userId,
-            timestamp = timestamp,
+            timestamp = System.currentTimeMillis(),
             _id = ObjectId(id)
         )
-        val writeSuccess = messageDataSource.insertMessage(collectionId, messageEntity)
+        val writeSuccess = chatMessageDataSource.insertMessage(collectionId, chatMessageEntity)
 
-        val messageWithCid = MessageWithCid(
-            content = messageEntity.content,
+        val chatMessageWithCid = ChatMessageWithCid(
+            content = chatMessageEntity.content,
             senderUid = userId,
-            timestamp = messageEntity.timestamp,
+            timestamp = chatMessageEntity.timestamp,
             id = id,
             collectionId = collectionId
         )
 
         val webSocketMessage = WebSocketMessage(
             type = "chatMessage",
-            data = messageWithCid
+            data = chatMessageWithCid
         )
         val parsedMessage = Json.encodeToString(webSocketMessage)
 
@@ -75,12 +75,13 @@ class WebSocketHandler(
             return
         }
 
-        connections[userId]?.socket?.send(Frame.Text(parsedMessage))
-        println("Message sent to $userId")
-        if (connections[receiverId]?.socket != null) {
-            connections[receiverId]?.socket?.send(Frame.Text(parsedMessage))
-            println("Message sent to $receiverId")
-        }
+        chatPublisher.publish(
+            Message.ChatMessage(
+                userId = userId,
+                receiverId = receiverId,
+                data = parsedMessage
+            )
+        )
     }
 
     suspend fun tryDisconnect(userId: String) {

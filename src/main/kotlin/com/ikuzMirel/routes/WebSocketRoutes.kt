@@ -3,6 +3,7 @@ package com.ikuzMirel.routes
 import com.ikuzMirel.exception.WSUserAlreadyExistsException
 import com.ikuzMirel.session.WebSocketSession
 import com.ikuzMirel.util.webSocket
+import com.ikuzMirel.websocket.WebSocketConnection
 import com.ikuzMirel.websocket.WebSocketHandler
 import io.github.smiley4.ktorswaggerui.dsl.get
 import io.ktor.http.*
@@ -12,6 +13,7 @@ import io.ktor.server.routing.*
 import io.ktor.server.sessions.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.channels.consumeEach
+import java.util.concurrent.ConcurrentHashMap
 
 fun Route.connectToWebsocket(
     webSocketHandler: WebSocketHandler
@@ -60,7 +62,7 @@ fun Route.connectToWebsocket(
     }
 }
 
-fun Route.showAllConnections(webSocketHandler: WebSocketHandler) {
+fun Route.showAllConnections(connections: ConcurrentHashMap<String, WebSocketConnection>) {
     get("connections", {
         tags = listOf("Websocket")
         description = "Show all WebSocket connections"
@@ -79,6 +81,6 @@ fun Route.showAllConnections(webSocketHandler: WebSocketHandler) {
             }
         }
     }) {
-        call.respond(HttpStatusCode.OK, webSocketHandler.connections.keys.toList())
+        call.respond(HttpStatusCode.OK, connections.keys.toList())
     }
 }

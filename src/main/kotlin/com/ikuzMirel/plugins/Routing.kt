@@ -1,19 +1,23 @@
 package com.ikuzMirel.plugins
 
 import com.ikuzMirel.data.auth.AuthSource
+import com.ikuzMirel.data.chatMessage.ChatMessageDataSource
 import com.ikuzMirel.data.friends.FriendDataSource
 import com.ikuzMirel.data.friends.FriendRequestDataSource
-import com.ikuzMirel.data.message.MessageDataSource
 import com.ikuzMirel.data.user.UserDataSource
+import com.ikuzMirel.mq.Publisher
 import com.ikuzMirel.routes.*
 import com.ikuzMirel.security.hashing.HashingService
 import com.ikuzMirel.security.token.TokenConfig
 import com.ikuzMirel.security.token.TokenService
+import com.ikuzMirel.websocket.WebSocketConnection
 import com.ikuzMirel.websocket.WebSocketHandler
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.routing.*
+import org.koin.core.qualifier.named
 import org.koin.ktor.ext.inject
+import java.util.concurrent.ConcurrentHashMap
 
 fun Application.configureRouting(
     hashingService: HashingService,
@@ -25,7 +29,10 @@ fun Application.configureRouting(
     val userDataSource by inject<UserDataSource>()
     val friendDataSource by inject<FriendDataSource>()
     val friendRequestDataSource by inject<FriendRequestDataSource>()
-    val messageDataSource by inject<MessageDataSource>()
+    val chatMessageDataSource by inject<ChatMessageDataSource>()
+    val connections by inject<ConcurrentHashMap<String, WebSocketConnection>>()
+    val friendRequestPublisher by inject<Publisher>(named("friendRequestPublisher"))
+
     routing {
         //Authentication
         signIn(authSource, hashingService, tokenService, tokenConfig)
@@ -44,24 +51,24 @@ fun Application.configureRouting(
             //FriendRequest
             getAllSentFriendRequests(friendRequestDataSource)
             getAllReceivedFriendRequests(friendRequestDataSource)
-            sendFriendRequest(userDataSource, friendRequestDataSource, friendDataSource, webSocketHandler)
-            cancelFriendRequest(friendRequestDataSource)
+            sendFriendRequest(userDataSource, friendRequestDataSource, friendDataSource, friendRequestPublisher)
+            cancelFriendRequest(friendRequestDataSource, friendRequestPublisher)
             acceptFriendRequest(
                 friendRequestDataSource,
                 friendDataSource,
                 userDataSource,
-                messageDataSource,
-                webSocketHandler
+                chatMessageDataSource,
+                friendRequestPublisher
             )
-            rejectFriendRequest(friendRequestDataSource, webSocketHandler)
+            rejectFriendRequest(friendRequestDataSource, friendRequestPublisher)
             searchForFriends(userDataSource, friendDataSource)
 
             //Websocket
             connectToWebsocket(webSocketHandler)
-            showAllConnections(webSocketHandler)
+            showAllConnections(connections)
 
             //Message
-            getAllMessages(messageDataSource)
+            getAllMessages(chatMessageDataSource)
         }
     }
 }

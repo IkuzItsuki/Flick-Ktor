@@ -1,11 +1,12 @@
 package com.ikuzMirel.routes
 
+import com.ikuzMirel.data.chatMessage.ChatMessageDataSource
 import com.ikuzMirel.data.friends.*
-import com.ikuzMirel.data.message.MessageDataSource
 import com.ikuzMirel.data.requests.FriendReqRequest
 import com.ikuzMirel.data.responses.FriendReqResponse
 import com.ikuzMirel.data.user.UserDataSource
-import com.ikuzMirel.websocket.WebSocketHandler
+import com.ikuzMirel.mq.Message
+import com.ikuzMirel.mq.Publisher
 import com.ikuzMirel.websocket.WebSocketMessage
 import io.github.smiley4.ktorswaggerui.dsl.get
 import io.github.smiley4.ktorswaggerui.dsl.post
@@ -16,7 +17,6 @@ import io.ktor.server.auth.jwt.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import io.ktor.websocket.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.bson.types.ObjectId
@@ -28,7 +28,7 @@ fun Route.sendFriendRequest(
     userDataSource: UserDataSource,
     friendRequestDataSource: FriendRequestDataSource,
     friendDataSource: FriendDataSource,
-    webSocketHandler: WebSocketHandler
+    friendRequestPublisher: Publisher
 ) {
     post("friendRequests/send", {
         tags = listOf("FriendRequest")
@@ -56,6 +56,10 @@ fun Route.sendFriendRequest(
                     example(
                         "ID mismatch",
                         "Friend request sender id does not match with token"
+                    )
+                    example(
+                        "Friend request already exists",
+                        "Friend request already exists"
                     )
                     example(
                         "Already Friend",
@@ -94,6 +98,13 @@ fun Route.sendFriendRequest(
             return@post
         }
 
+        val friendRequestFormDatabase =
+            friendRequestDataSource.getFriendRequestByUsers(request.senderId, request.receiverId)
+        if (friendRequestFormDatabase != null && friendRequestFormDatabase.status != FriendRequestStatus.REJECTED.name) {
+            call.respond(HttpStatusCode.Conflict, "Friend request already exists")
+            return@post
+        }
+
         val friendAlreadyExists =
             friendDataSource.getAllFriends(request.senderId).find { it._id == ObjectId(request.receiverId) }
         if (friendAlreadyExists != null) {
@@ -121,10 +132,14 @@ fun Route.sendFriendRequest(
             type = "friendRequest",
             data = friendRequest
         )
+
         val parsedMessage = Json.encodeToString(webSocketMessage)
-        if (webSocketHandler.connections[request.receiverId]?.socket != null) {
-            webSocketHandler.connections[request.receiverId]?.socket?.send(Frame.Text(parsedMessage))
-        }
+        friendRequestPublisher.publish(
+            Message.FriendRequestMessage(
+                targetUserId = request.receiverId,
+                data = parsedMessage
+            )
+        )
 
         call.respond(
             status = HttpStatusCode.OK,
@@ -134,7 +149,8 @@ fun Route.sendFriendRequest(
 }
 
 fun Route.cancelFriendRequest(
-    friendRequestDataSource: FriendRequestDataSource
+    friendRequestDataSource: FriendRequestDataSource,
+    friendRequestPublisher: Publisher
 ) {
     post("friendRequests/cancel", {
         tags = listOf("FriendRequest")
@@ -194,6 +210,18 @@ fun Route.cancelFriendRequest(
             return@post
         }
 
+        friendRequestPublisher.publish(
+            Message.FriendRequestMessage(
+                targetUserId = friendRequest.receiverId,
+                data = Json.encodeToString(
+                    WebSocketMessage(
+                        type = "friendRequest",
+                        data = friendRequest.copy(status = FriendRequestStatus.CANCELED.name)
+                    )
+                )
+            )
+        )
+
         call.respond(
             status = HttpStatusCode.OK,
             message = "Friend request cancelled"
@@ -205,8 +233,8 @@ fun Route.acceptFriendRequest(
     friendRequestDataSource: FriendRequestDataSource,
     friendDataSource: FriendDataSource,
     userDataSource: UserDataSource,
-    messageDataSource: MessageDataSource,
-    webSocketHandler: WebSocketHandler
+    chatMessageDataSource: ChatMessageDataSource,
+    friendRequestPublisher: Publisher
 ) {
     post("friendRequests/accept", {
         tags = listOf("FriendRequest")
@@ -278,7 +306,7 @@ fun Route.acceptFriendRequest(
             return@post
         }
 
-        val messageCollection = messageDataSource.createMessageCollection()
+        val messageCollection = chatMessageDataSource.createMessageCollection()
         val senderAddFriend = friendDataSource.addFriend(
             sender._id.toString(),
             Friend(
@@ -304,10 +332,14 @@ fun Route.acceptFriendRequest(
             type = "friendRequest",
             data = newFriendRequest
         )
+
         val parsedFriendRequest = Json.encodeToString(webSocketMessage)
-        if (webSocketHandler.connections[friendRequest.senderId]?.socket != null) {
-            webSocketHandler.connections[friendRequest.senderId]?.socket?.send(Frame.Text(parsedFriendRequest))
-        }
+        friendRequestPublisher.publish(
+            Message.FriendRequestMessage(
+                targetUserId = friendRequest.senderId,
+                data = parsedFriendRequest
+            )
+        )
 
         call.respond(
             status = HttpStatusCode.OK,
@@ -318,7 +350,7 @@ fun Route.acceptFriendRequest(
 
 fun Route.rejectFriendRequest(
     friendRequestDataSource: FriendRequestDataSource,
-    webSocketHandler: WebSocketHandler
+    friendRequestPublisher: Publisher
 ) {
     post("friendRequests/reject", {
         tags = listOf("FriendRequest")
@@ -383,10 +415,14 @@ fun Route.rejectFriendRequest(
             type = "friendRequest",
             data = newFriendRequest
         )
+
         val parsedFriendRequest = Json.encodeToString(webSocketMessage)
-        if (webSocketHandler.connections[friendRequest.senderId]?.socket != null) {
-            webSocketHandler.connections[friendRequest.senderId]?.socket?.send(Frame.Text(parsedFriendRequest))
-        }
+        friendRequestPublisher.publish(
+            Message.FriendRequestMessage(
+                targetUserId = friendRequest.senderId,
+                data = parsedFriendRequest
+            )
+        )
 
         call.respond(
             status = HttpStatusCode.OK,

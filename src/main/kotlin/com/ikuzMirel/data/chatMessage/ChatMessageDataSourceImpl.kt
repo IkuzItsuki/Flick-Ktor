@@ -1,4 +1,4 @@
-package com.ikuzMirel.data.message
+package com.ikuzMirel.data.chatMessage
 
 import com.mongodb.client.model.ClusteredIndexOptions
 import com.mongodb.client.model.CreateCollectionOptions
@@ -8,22 +8,22 @@ import kotlinx.coroutines.flow.toList
 import org.bson.Document
 import org.bson.types.ObjectId
 
-class MessageDataSourceImpl(
+class ChatMessageDataSourceImpl(
     private val db: MongoDatabase
-): MessageDataSource {
+) : ChatMessageDataSource {
 
-    private fun getCollection(collectionId: String) = db.getCollection<Message>(collectionId)
+    private fun getCollection(collectionId: String) = db.getCollection<ChatMessage>(collectionId)
 
-    override suspend fun getAllMessages(collectionId: String): List<Message> {
+    override suspend fun getAllMessages(collectionId: String): List<ChatMessage> {
         val messages = getCollection(collectionId)
         return messages.find()
-            .sort(Sorts.descending(Message::timestamp.name))
+            .sort(Sorts.descending(ChatMessage::timestamp.name))
             .toList()
     }
 
-    override suspend fun insertMessage(collectionId: String, message: Message) : Boolean{
+    override suspend fun insertMessage(collectionId: String, chatMessage: ChatMessage): Boolean {
         val messages = getCollection(collectionId)
-        return messages.insertOne(message).wasAcknowledged()
+        return messages.insertOne(chatMessage).wasAcknowledged()
     }
 
     override suspend fun createMessageCollection(): String {

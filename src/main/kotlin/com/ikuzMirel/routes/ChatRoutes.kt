@@ -1,7 +1,7 @@
 package com.ikuzMirel.routes
 
-import com.ikuzMirel.data.message.MessageDataSource
-import com.ikuzMirel.data.message.MessageWithCid
+import com.ikuzMirel.data.chatMessage.ChatMessageDataSource
+import com.ikuzMirel.data.chatMessage.ChatMessageWithCid
 import com.ikuzMirel.data.responses.ChatMsgResponse
 import io.github.smiley4.ktorswaggerui.dsl.get
 import io.ktor.http.*
@@ -9,7 +9,7 @@ import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 
-fun Route.getAllMessages(messageDataSource: MessageDataSource) {
+fun Route.getAllMessages(chatMessageDataSource: ChatMessageDataSource) {
     get("messages", {
         description = "Get all messages "
         tags = listOf("Messages")
@@ -31,14 +31,14 @@ fun Route.getAllMessages(messageDataSource: MessageDataSource) {
                         "Default",
                         ChatMsgResponse(
                             listOf(
-                                MessageWithCid(
+                                ChatMessageWithCid(
                                     "5f9b1b4b4b9a9b1b4b9a9b1b",
                                     "Hello",
                                     "5f9b1b4b4b9a9b1b4b9a9b1b",
                                     1604050800,
                                     "64d3fa5564bb17218acf795e"
                                 ),
-                                MessageWithCid(
+                                ChatMessageWithCid(
                                     "5f9b1b4b4b9a9b1b4b9a9b1b",
                                     "Hello",
                                     "5f9b1b4b4b9a9b1b4b9a9b1b",
@@ -58,10 +58,10 @@ fun Route.getAllMessages(messageDataSource: MessageDataSource) {
             return@get
         }
 
-        val response = messageDataSource.getAllMessages(cid)
+        val response = chatMessageDataSource.getAllMessages(cid)
 
         val responseWithCid = response.map {
-            MessageWithCid(
+            ChatMessageWithCid(
                 it._id.toString(),
                 it.content,
                 it.senderUid,

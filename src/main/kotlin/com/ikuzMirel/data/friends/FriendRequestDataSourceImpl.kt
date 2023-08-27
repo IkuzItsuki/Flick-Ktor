@@ -30,6 +30,15 @@ class FriendRequestDataSourceImpl(
         ).firstOrNull() ?: throw Exception("Friend request not found")
     }
 
+    override suspend fun getFriendRequestByUsers(senderId: String, receiverId: String): FriendRequest? {
+        return friendRequests.find(
+            Filters.and(
+                Filters.eq(FriendRequest::senderId.name, senderId),
+                Filters.eq(FriendRequest::receiverId.name, receiverId)
+            )
+        ).firstOrNull()
+    }
+
     override suspend fun sendFriendRequest(friend: FriendRequest): Boolean {
         val findSendFR = friendRequests.find(
             Filters.and(

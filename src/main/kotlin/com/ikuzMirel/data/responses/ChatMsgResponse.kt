@@ -1,9 +1,9 @@
 package com.ikuzMirel.data.responses
 
-import com.ikuzMirel.data.message.MessageWithCid
+import com.ikuzMirel.data.chatMessage.ChatMessageWithCid
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class ChatMsgResponse(
-    val messages: List<MessageWithCid>
+    val messages: List<ChatMessageWithCid>
 )

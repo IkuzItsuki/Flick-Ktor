@@ -9,7 +9,8 @@ import org.bson.types.ObjectId
 enum class FriendRequestStatus {
     PENDING,
     ACCEPTED,
-    REJECTED
+    REJECTED,
+    CANCELED
 }
 
 @Serializable
