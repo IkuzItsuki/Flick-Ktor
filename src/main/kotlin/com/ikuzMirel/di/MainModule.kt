@@ -36,6 +36,6 @@ val mainModule = module {
         FriendRequestSubscriber(connections)
     }
     single {
-        WebSocketHandler(get(), get(), get(named("chatPublisher")), connections)
+        WebSocketHandler(get(), get(), get(), get(named("chatPublisher")), connections)
     }
 }

@@ -169,7 +169,8 @@ fun Route.getFriends(
                                 Friend(
                                     _id = ObjectId("64d3fa5564bb17218acf795e"),
                                     username = "DemoUser",
-                                    collectionId = "64d3fa5564bb17218acf795e"
+                                    collectionId = "64d3fa5564bb17218acf795e",
+                                    lastReadMessageTime = 1620000000000
                                 )
                             )
                         )
@@ -223,7 +224,8 @@ fun Route.getFriend(
                         Friend(
                             _id = ObjectId("64d3fa5564bb17218acf795e"),
                             username = "DemoUser",
-                            collectionId = "64d3fa5564bb17218acf795e"
+                            collectionId = "64d3fa5564bb17218acf795e",
+                            lastReadMessageTime = 1620000000000
                         )
                     )
                 }

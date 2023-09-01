@@ -5,4 +5,5 @@ interface FriendDataSource {
     suspend fun getFriendById(userId: String, friendId: String): Friend?
     suspend fun deleteFriend(userId: String, friend: Friend): Boolean
     suspend fun addFriend(userId: String, friend: Friend): Boolean
+    suspend fun updateLastReadMessageTime(userId: String, friendId: String, timestamp: Long): Boolean
 }

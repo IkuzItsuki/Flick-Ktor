@@ -11,5 +11,6 @@ data class Friend(
     @SerialName("userId")
     @Serializable(ObjectIdSerializer::class)
     val _id: ObjectId,
-    val collectionId: String
+    val collectionId: String,
+    val lastReadMessageTime: Long
 )

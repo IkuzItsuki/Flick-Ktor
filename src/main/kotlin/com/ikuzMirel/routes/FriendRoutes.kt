@@ -312,7 +312,8 @@ fun Route.acceptFriendRequest(
             Friend(
                 username = receiver.username,
                 _id = receiver._id,
-                collectionId = messageCollection
+                collectionId = messageCollection,
+                lastReadMessageTime = 0
             )
         )
         val receiverAddFriend = friendDataSource.addFriend(
@@ -320,7 +321,8 @@ fun Route.acceptFriendRequest(
             Friend(
                 username = sender.username,
                 _id = sender._id,
-                collectionId = messageCollection
+                collectionId = messageCollection,
+                lastReadMessageTime = 0
             )
         )
         if (!senderAddFriend || !receiverAddFriend) {

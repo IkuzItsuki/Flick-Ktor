@@ -1,7 +1,9 @@
 package com.ikuzMirel.serializer
 
+import com.ikuzMirel.data.chatMessage.ChatMessageRequest
 import com.ikuzMirel.data.chatMessage.ChatMessageWithCid
 import com.ikuzMirel.data.friends.FriendRequest
+import com.ikuzMirel.websocket.LastReadMessageSet
 import com.ikuzMirel.websocket.WebSocketMessage
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
@@ -22,7 +24,9 @@ object WebSocketMsgSerializer : KSerializer<WebSocketMessage> {
     @Suppress("UNCHECKED_CAST")
     private val typeSerializer: Map<String, KSerializer<Any>> = mapOf(
         "chatMessage" to serializer<ChatMessageWithCid>(),
+        "chatMessageRequest" to serializer<ChatMessageRequest>(),
         "friendRequest" to serializer<FriendRequest>(),
+        "lastReadMessage" to serializer<LastReadMessageSet>()
     ).mapValues { (_, v) -> v as KSerializer<Any> }
 
     private fun getDataSerializer(type: String): KSerializer<Any> {

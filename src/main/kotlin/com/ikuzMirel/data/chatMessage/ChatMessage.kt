@@ -14,3 +14,13 @@ data class ChatMessage(
     @Serializable(ObjectIdSerializer::class)
     val _id: ObjectId
 )
+
+fun ChatMessage.toChatMessageWithCid(collectionId: String): ChatMessageWithCid {
+    return ChatMessageWithCid(
+        content = content,
+        senderUid = senderUid,
+        timestamp = timestamp,
+        id = _id.toString(),
+        collectionId = collectionId
+    )
+}

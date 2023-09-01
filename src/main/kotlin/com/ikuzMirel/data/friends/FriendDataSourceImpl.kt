@@ -42,4 +42,16 @@ class FriendDataSourceImpl(
                 .wasAcknowledged()
         } ?: false
     }
+
+    override suspend fun updateLastReadMessageTime(userId: String, friendId: String, timestamp: Long): Boolean {
+        val userObjID = ObjectId(userId)
+        val friendObjID = ObjectId(friendId)
+        val user = userFriends.find(Filters.eq(User::_id.name, userObjID)).firstOrNull() ?: return false
+        val friend = user.friends.find { it._id == friendObjID } ?: return false
+        if (timestamp < friend.lastReadMessageTime) return false
+        val newFriend = friend.copy(lastReadMessageTime = timestamp)
+        val newFriends = user.friends - friend + newFriend
+        return userFriends.updateOne(Filters.eq(User::_id.name, userObjID), Updates.set(User::friends.name, newFriends))
+            .wasAcknowledged()
+    }
 }
